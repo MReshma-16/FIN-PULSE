@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="FIN PULSE - Smart Loan Utilization & Financial Management. Track loans, expenses, EMIs with AI-powered insights.">
+    <meta name="keywords" content="loan management, expense tracker, EMI calculator, financial planning">
+    <meta name="author" content="FIN PULSE">
+    <title>FIN PULSE – Your Pulse on Better Finances</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+
+    <!-- App Styles -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- App Scripts -->
+    <script src="js/utils.js" defer></script>
+    <script src="js/api.js" defer></script>
+    <script src="js/auth.js" defer></script>
+    <script src="js/loan.js" defer></script>
+    <script src="js/expense.js" defer></script>
+    <script src="js/emi.js" defer></script>
+    <script src="js/dashboard.js" defer></script>
+    <script src="js/reports.js" defer></script>
+    <script src="js/profile.js" defer></script>
+    <script src="js/admin.js" defer></script>
+    <script src="js/notifications.js" defer></script>
+    <script src="js/app.js" defer></script>
+</head>
+<body>
+    <!-- ============================================ -->
+    <!-- HEADER -->
+    <!-- ============================================ -->
+    <header id="main-header" class="hidden">
+        <div class="header-left">
+            <div class="logo">
+                <span class="material-icons logo-icon">monitoring</span>
+                <span>FIN PULSE</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button id="theme-toggle" class="icon-btn" title="Toggle Dark Mode">
+                <span class="material-icons" id="theme-icon">dark_mode</span>
+            </button>
+            <button id="notif-btn" class="icon-btn" onclick="location.hash='#notifications'" title="Notifications">
+                <span class="material-icons">notifications</span>
+                <span id="notif-badge" class="badge hidden">0</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ============================================ -->
+    <!-- MAIN CONTENT -->
+    <!-- ============================================ -->
+    <main id="app-container">
+
+        <!-- ======== 1. SPLASH SCREEN ======== -->
+        <section id="splash-screen" class="screen active">
+            <div class="splash-content">
+                <div class="splash-illustration">
+                    <div class="splash-circles">
+                        <div class="circle c1"></div>
+                        <div class="circle c2"></div>
+                        <div class="circle c3"></div>
+                    </div>
+                    <span class="material-icons splash-main-icon">account_balance_wallet</span>
+                </div>
+                <h1 class="logo-pulse">FIN PULSE</h1>
+                <p class="splash-tagline">YOUR PULSE ON BETTER FINANCES</p>
+                <p class="splash-desc">Track loans, manage expenses, monitor EMIs — all in one place with AI-powered financial insights.</p>
+                <div class="splash-actions">
+                    <button class="btn btn-primary btn-lg btn-glow" onclick="location.hash='#register'" title="For New User">
+                        <span class="material-icons">person_add</span> Register
+                    </button>
+                    <button class="btn btn-outline btn-lg" onclick="location.hash='#login'" title="Already have an account? Login">
+                        <span class="material-icons">login</span> Login
+                    </button>
+                </div>
+                <div class="splash-features">
+                    <div class="feature-chip"><span class="material-icons">security</span> Secure</div>
+                    <div class="feature-chip"><span class="material-icons">speed</span> Fast</div>
+                    <div class="feature-chip"><span class="material-icons">insights</span> Smart</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== 2. REGISTER SCREEN ======== -->
+        <section id="register-screen" class="screen">
+            <div class="auth-container">
+                <div class="card auth-card glass-card">
+                    <div class="auth-header">
+                        <span class="material-icons auth-icon">person_add</span>
+                        <h2>WELCOME TO FIN PULSE</h2>
+                        <p>Create your account to get started</p>
+                    </div>
+                    <form id="register-form" novalidate>
+                        <div class="input-group">
+                            <span class="material-icons input-icon">person</span>
+                            <input type="text" id="reg-name" required placeholder=" ">
+                            <label for="reg-name">Full Name</label>
+                            <span class="input-error" id="reg-name-error"></span>
+                        </div>
+                        <div class="input-group">
+                            <span class="material-icons input-icon">email</span>
+                            <input type="email" id="reg-email" required placeholder=" ">
+                            <label for="reg-email">Email Address</label>
+                            <span class="input-error" id="reg-email-error"></span>
+                        </div>
+                        <div class="input-group">
+                            <span class="material-icons input-icon">phone</span>
+                            <input type="tel" id="reg-phone" required maxlength="10" placeholder=" ">
+                            <label for="reg-phone">Phone Number</label>
+                            <span class="input-error" id="reg-phone-error"></span>
+                        </div>
+                        <div class="input-group">
+                            <span class="material-icons input-icon">lock</span>
+                            <input type="password" id="reg-password" required placeholder=" ">
+                            <label for="reg-password">Password</label>
+                            <span class="input-error" id="reg-password-error"></span>
+                        </div>
+                        <div class="input-group">
+                            <span class="material-icons input-icon">lock_outline</span>
+                            <input type="password" id="reg-confirm" required placeholder=" ">
+                            <label for="reg-confirm">Confirm Password</label>
+                            <span class="input-error" id="reg-confirm-error"></span>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg w-100 btn-glow">
+                            <span class="material-icons">how_to_reg</span> Register
+                        </button>
+                    </form>
+                    <p class="auth-switch">Already have an account? <a href="#login">Login</a></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== 3. LOGIN SCREEN ======== -->
+        <section id="login-screen" class="screen">
+            <div class="auth-container">
+                <div class="card auth-card glass-card">
+                    <div class="auth-header">
+                        <span class="material-icons auth-icon">login</span>
+                        <h2>WELCOME BACK</h2>
+                        <p>Sign in to continue</p>
+                    </div>
+                    <form id="login-form" novalidate>
+                        <div class="input-group">
+                            <span class="material-icons input-icon">email</span>
+                            <input type="email" id="login-email" required placeholder=" ">
+                            <label for="login-email">Email Address</label>
+                            <span class="input-error" id="login-email-error"></span>
+                        </div>
+                        <div class="input-group">
+                            <span class="material-icons input-icon">lock</span>
+                            <input type="password" id="login-password" required placeholder=" ">
+                            <label for="login-password">Password</label>
+                            <span class="input-error" id="login-password-error"></span>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg w-100 btn-glow">
+                            <span class="material-icons">login</span> Login
+                        </button>
+                    </form>
+                    <div class="auth-links">
+                        <a href="#" id="forgot-password-link">Forgot Password?</a>
+                        <p class="auth-switch">Don't have an account? <a href="#register">Register</a></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== 4. LOAN DETAILS SCREEN ======== -->
+        <section id="loan-screen" class="screen">
+            <div class="screen-header">
+                <h2><span class="material-icons">account_balance</span> Loan Details</h2>
+            </div>
+            <div class="card glass-card">
+                <form id="loan-form" novalidate>
+                    <div class="input-group">
+                        <span class="material-icons input-icon">category</span>
+                        <select id="loan-type" required>
+                            <option value="" disabled selected>Select Loan Type</option>
+                            <option value="PERSONAL">🧑 Personal Loan</option>
+                            <option value="EDUCATION">🎓 Education Loan</option>
+                            <option value="HOME">🏠 Home Loan</option>
+                            <option value="VEHICLE">🚗 Vehicle Loan</option>
+                            <option value="BUSINESS">💼 Business Loan</option>
+                            <option value="AGRICULTURE">🌾 Agriculture Loan</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="input-group">
+                            <span class="material-icons input-icon">currency_rupee</span>
+                            <input type="number" id="loan-amount" required min="1000" placeholder=" ">
+                            <label for="loan-amount">Loan Amount (₹)</label>
+                        </div>
+                        <div class="input-group">
+                            <span class="material-icons input-icon">percent</span>
+                            <input type="number" id="loan-rate" required min="0.1" step="0.1" placeholder=" ">
+                            <label for="loan-rate">Interest Rate (%)</label>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="input-group">
+                            <span class="material-icons input-icon">calendar_month</span>
+                            <input type="number" id="loan-tenure" required min="1" max="30" placeholder=" ">
+                            <label for="loan-tenure">Tenure (Years)</label>
+                        </div>
+                        <div class="input-group">
+                            <span class="material-icons input-icon">account_balance_wallet</span>
+                            <input type="number" id="loan-income" required placeholder=" ">
+                            <label for="loan-income">Monthly Income (₹)</label>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <span class="material-icons input-icon">description</span>
+                        <input type="text" id="loan-purpose" required placeholder=" ">
+                        <label for="loan-purpose">Purpose of Loan</label>
+                    </div>
+
+                    <!-- Auto-calculated Results -->
+                    <div class="calc-results hidden" id="loan-results">
+                        <h3><span class="material-icons">calculate</span> Calculated Values</h3>
+                        <div class="calc-grid">
+                            <div class="calc-item">
+                                <span class="calc-label">Loan Amount</span>
+                                <span class="calc-value" id="res-amount">₹0</span>
+                            </div>
+                            <div class="calc-item highlight-blue">
+                                <span class="calc-label">Monthly EMI</span>
+                                <span class="calc-value" id="res-emi">₹0</span>
+                            </div>
+                            <div class="calc-item highlight-orange">
+                                <span class="calc-label">Total Interest</span>
+                                <span class="calc-value" id="res-interest">₹0</span>
+                            </div>
+                            <div class="calc-item highlight-green">
+                                <span class="calc-label">Total Repayment</span>
+                                <span class="calc-value" id="res-total">₹0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="btn-group mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg flex-1 btn-glow">
+                            <span class="material-icons">check_circle</span> Approve & Save
+                        </button>
+                        <button type="reset" class="btn btn-outline flex-1" id="loan-reset">
+                            <span class="material-icons">cancel</span> Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div id="existing-loans" class="mt-4"></div>
+        </section>
+
+        <!-- ======== 5. EXPENSE TRACKING SCREEN ======== -->
+        <section id="expense-screen" class="screen">
+            <div class="screen-header">
+                <h2><span class="material-icons">receipt_long</span> Loan Utilization</h2>
+            </div>
+
+            <!-- Utilization Summary -->
+            <div class="card glass-card utilization-card">
+                <div class="utilization-row">
+                    <div class="progress-ring-container">
+                        <svg class="progress-ring" width="120" height="120" viewBox="0 0 120 120">
+                            <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
+                            <circle class="ring-fill" id="util-ring" cx="60" cy="60" r="52"></circle>
+                        </svg>
+                        <div class="ring-text" id="util-percent">0%</div>
+                    </div>
+                    <div class="util-details">
+                        <div class="util-item">
+                            <span class="util-label">Total Loan</span>
+                            <span class="util-value" id="util-total">₹0</span>
+                        </div>
+                        <div class="util-item">
+                            <span class="util-label">Utilized</span>
+                            <span class="util-value utilized" id="util-used">₹0</span>
+                        </div>
+                        <div class="util-item">
+                            <span class="util-label">Remaining</span>
+                            <span class="util-value remaining" id="util-bal">₹0</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="budget-alert" class="budget-alert hidden">
+                    <span class="material-icons">warning</span>
+                    <span>Budget Alert: Utilization exceeds 80%!</span>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="expense-controls">
+                <div class="search-box">
+                    <span class="material-icons">search</span>
+                    <input type="text" id="expense-search" placeholder="Search expenses...">
+                </div>
+                <select id="expense-filter" class="filter-select">
+                    <option value="ALL">All Categories</option>
+                    <option value="EDUCATION">Education</option>
+                    <option value="MEDICAL">Medical</option>
+                    <option value="BUSINESS">Business</option>
+                    <option value="PERSONAL">Personal</option>
+                    <option value="HOME">Home</option>
+                    <option value="AGRICULTURE">Agriculture</option>
+                    <option value="OTHER">Other</option>
+                </select>
+                <button class="btn btn-primary" id="add-expense-btn" onclick="ExpenseModule.showModal()">
+                    <span class="material-icons">add</span> Add Expense
+                </button>
+            </div>
+
+            <!-- Expense List -->
+            <div id="expense-list" class="expense-list"></div>
+        </section>
+
+        <!-- ======== 6. EMI MANAGEMENT SCREEN ======== -->
+        <section id="emi-screen" class="screen">
+            <div class="screen-header">
+                <h2><span class="material-icons">payment</span> EMI Management</h2>
+            </div>
+
+            <div class="emi-summary-grid">
+                <div class="card glass-card emi-stat">
+                    <span class="material-icons">event</span>
+                    <div class="emi-stat-info">
+                        <span class="emi-stat-label">Monthly EMI</span>
+                        <span class="emi-stat-value" id="emi-monthly">₹0</span>
+                    </div>
+                </div>
+                <div class="card glass-card emi-stat">
+                    <span class="material-icons">today</span>
+                    <div class="emi-stat-info">
+                        <span class="emi-stat-label">Next Due Date</span>
+                        <span class="emi-stat-value" id="emi-next-due">--</span>
+                    </div>
+                </div>
+                <div class="card glass-card emi-stat">
+                    <span class="material-icons">check_circle</span>
+                    <div class="emi-stat-info">
+                        <span class="emi-stat-label">EMIs Paid</span>
+                        <span class="emi-stat-value" id="emi-paid-count">0 / 0</span>
+                    </div>
+                </div>
+                <div class="card glass-card emi-stat">
+                    <span class="material-icons">account_balance</span>
+                    <div class="emi-stat-info">
+                        <span class="emi-stat-label">Outstanding</span>
+                        <span class="emi-stat-value" id="emi-outstanding">₹0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-header mt-4">
+                <h3>EMI Schedule</h3>
+                <button class="btn btn-sm btn-outline" onclick="EmiModule.showHistory()">
+                    <span class="material-icons">history</span> Payment History
+                </button>
+            </div>
+            <div id="emi-list" class="emi-list"></div>
+        </section>
+
+        <!-- ======== 7. DASHBOARD SCREEN ======== -->
+        <section id="dashboard-screen" class="screen">
+            <div class="screen-header">
+                <h2><span class="material-icons">dashboard</span> Dashboard</h2>
+            </div>
+
+            <!-- Stat Cards -->
+            <div class="stat-grid">
+                <div class="stat-card blue-gradient">
+                    <div class="stat-icon"><span class="material-icons">account_balance</span></div>
+                    <div class="stat-info">
+                        <span class="stat-title">Total Loan</span>
+                        <span class="stat-value" id="dash-total-loan">₹0</span>
+                    </div>
+                </div>
+                <div class="stat-card green-gradient">
+                    <div class="stat-icon"><span class="material-icons">trending_up</span></div>
+                    <div class="stat-info">
+                        <span class="stat-title">Utilized</span>
+                        <span class="stat-value" id="dash-utilized">₹0</span>
+                    </div>
+                </div>
+                <div class="stat-card orange-gradient">
+                    <div class="stat-icon"><span class="material-icons">savings</span></div>
+                    <div class="stat-info">
+                        <span class="stat-title">Balance</span>
+                        <span class="stat-value" id="dash-balance">₹0</span>
+                    </div>
+                </div>
+                <div class="stat-card purple-gradient">
+                    <div class="stat-icon"><span class="material-icons">payment</span></div>
+                    <div class="stat-info">
+                        <span class="stat-title">Monthly EMI</span>
+                        <span class="stat-value" id="dash-emi">₹0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="charts-grid mt-4">
+                <div class="card glass-card chart-card">
+                    <h3><span class="material-icons">pie_chart</span> Spending by Category</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+                <div class="card glass-card chart-card">
+                    <h3><span class="material-icons">bar_chart</span> Monthly Expenses</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card glass-card chart-card mt-3">
+                <h3><span class="material-icons">show_chart</span> EMI Payments Over Time</h3>
+                <div class="chart-wrapper chart-wide">
+                    <canvas id="emiChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Activity & Tips -->
+            <div class="dashboard-bottom mt-4">
+                <div class="card glass-card">
+                    <h3><span class="material-icons">receipt</span> Recent Expenses</h3>
+                    <div id="recent-expenses-list"></div>
+                </div>
+                <div class="card glass-card">
+                    <h3><span class="material-icons">lightbulb</span> AI Financial Tips</h3>
+                    <div id="ai-tips-list"></div>
+                </div>
+            </div>
+
+            <!-- Upcoming EMI -->
+            <div class="card glass-card upcoming-emi-card mt-3">
+                <h3><span class="material-icons">event_upcoming</span> Upcoming EMI</h3>
+                <div id="upcoming-emi-info"></div>
+            </div>
+        </section>
+
+        <!-- ======== 8. REPORTS SCREEN ======== -->
+        <section id="reports-screen" class="screen">
+            <div class="screen-header">
+                <h2><span class="material-icons">summarize</span> Reports</h2>
+            </div>
+            <div class="report-grid">
+                <div class="card glass-card report-card">
+                    <div class="report-icon blue-gradient"><span class="material-icons">description</span></div>
+                    <h3>Loan Summary</h3>
+                    <p>Complete overview of your loan details and status</p>
+                    <div class="report-actions">
+                        <button class="btn btn-sm btn-primary" onclick="ReportsModule.exportPDF('loan')">
+                            <span class="material-icons">picture_as_pdf</span> PDF
+                        </button>
+                        <button class="btn btn-sm btn-outline" onclick="ReportsModule.exportExcel('loan')">
+                            <span class="material-icons">grid_on</span> Excel
+                        </button>
+                    </div>
+                </div>
+                <div class="card glass-card report-card">
+                    <div class="report-icon green-gradient"><span class="material-icons">receipt_long</span></div>
+                    <h3>Expense Report</h3>
+                    <p>Detailed breakdown of all loan utilization expenses</p>
+                    <div class="report-actions">
+                        <button class="btn btn-sm btn-primary" onclick="ReportsModule.exportPDF('expense')">
+                            <span class="material-icons">picture_as_pdf</span> PDF
+                        </button>
+                        <button class="btn btn-sm btn-outline" onclick="ReportsModule.exportExcel('expense')">
+                            <span class="material-icons">grid_on</span> Excel
+                        </button>
+                    </div>
+                </div>
+                <div class="card glass-card report-card">
+                    <div class="report-icon orange-gradient"><span class="material-icons">payment</span></div>
+                    <h3>EMI Report</h3>
+                    <p>Track all EMI payments and outstanding balances</p>
+                    <div class="report-actions">
+                        <button class="btn btn-sm btn-primary" onclick="ReportsModule.exportPDF('emi')">
+                            <span class="material-icons">picture_as_pdf</span> PDF
+                        </button>
+                        <button class="btn btn-sm btn-outline" onclick="ReportsModule.exportExcel('emi')">
+                            <span class="material-icons">grid_on</span> Excel
+                        </button>
+                    </div>
+                </div>
+                <div class="card glass-card report-card">
+                    <div class="report-icon purple-gradient"><span class="material-icons">calendar_month</span></div>
+                    <h3>Monthly Spending</h3>
+                    <p>Month-wise breakdown of your financial activities</p>
+                    <div class="report-actions">
+                        <button class="btn btn-sm btn-primary" onclick="ReportsModule.exportPDF('monthly')">
+                            <span class="material-icons">picture_as_pdf</span> PDF
+                        </button>
+                        <button class="btn btn-sm btn-outline" onclick="ReportsModule.exportExcel('monthly')">
+                            <span class="material-icons">grid_on</span> Excel
+                        </button>
+                    </div>
+                </div>
+                <div class="card glass-card report-card">
+                    <div class="report-icon teal-gradient"><span class="material-icons">donut_large</span></div>
+                    <h3>Loan Utilization</h3>
+                    <p>How effectively you're using your sanctioned loan</p>
+                    <div class="report-actions">
+                        <button class="btn btn-sm btn-primary" onclick="ReportsModule.exportPDF('utilization')">
+                            <span class="material-icons">picture_as_pdf</span> PDF
+                        </button>
+                        <button class="btn btn-sm btn-outline" onclick="ReportsModule.exportExcel('utilization')">
+                            <span class="material-icons">grid_on</span> Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== 9. PROFILE SCREEN ======== -->
+        <section id="profile-screen" class="screen">
+            <div class="screen-header">
+                <h2><span class="material-icons">person</span> Profile</h2>
+            </div>
+            <div class="profile-container">
+                <div class="card glass-card profile-card">
+                    <div class="profile-header-section">
+                        <div class="avatar-lg" id="profile-avatar">U</div>
+                        <h3 id="profile-name">User Name</h3>
+                        <p class="profile-role" id="profile-role">USER</p>
+                    </div>
+                    <div class="profile-details">
+                        <div class="profile-item">
+                            <span class="material-icons">email</span>
+                            <div>
+                                <span class="profile-label">Email</span>
+                                <span class="profile-value" id="profile-email">user@example.com</span>
+                            </div>
+                        </div>
+                        <div class="profile-item">
+                            <span class="material-icons">phone</span>
+                            <div>
+                                <span class="profile-label">Phone</span>
+                                <span class="profile-value" id="profile-phone">9876543210</span>
+                            </div>
+                        </div>
+                        <div class="profile-item">
+                            <span class="material-icons">calendar_today</span>
+                            <div>
+                                <span class="profile-label">Member Since</span>
+                                <span class="profile-value" id="profile-since">January 2026</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="profile-actions">
+                        <button class="btn btn-primary w-100" onclick="ProfileModule.showEditModal()">
+                            <span class="material-icons">edit</span> Edit Profile
+                        </button>
+                        <button class="btn btn-outline w-100" onclick="ProfileModule.showPasswordModal()">
+                            <span class="material-icons">lock</span> Change Password
+                        </button>
+                        <button class="btn btn-danger w-100" onclick="ProfileModule.logout()">
+                            <span class="material-icons">logout</span> Logout
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Credit Score Widget -->
+                <div class="card glass-card credit-score-card">
+                    <h3><span class="material-icons">speed</span> Credit Score Estimate</h3>
+                    <div class="credit-score-display">
+                        <div class="credit-score-ring">
+                            <svg viewBox="0 0 120 120" width="150" height="150">
+                                <circle class="ring-bg" cx="60" cy="60" r="52" stroke-width="8"></circle>
+                                <circle class="credit-ring-fill" id="credit-ring" cx="60" cy="60" r="52" stroke-width="8"></circle>
+                            </svg>
+                            <div class="credit-score-value" id="credit-score">750</div>
+                        </div>
+                        <span class="credit-score-label" id="credit-label">Good</span>
+                    </div>
+                </div>
+
+                <!-- Loan Eligibility -->
+                <div class="card glass-card eligibility-card">
+                    <h3><span class="material-icons">verified</span> Loan Eligibility</h3>
+                    <div class="eligibility-info" id="eligibility-info">
+                        <p>Based on your profile, you may be eligible for:</p>
+                        <div id="eligibility-results"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== 10. ADMIN SCREEN ======== -->
+        <section id="admin-screen" class="screen">
+            <div class="screen-header">
+                <h2><span class="material-icons">admin_panel_settings</span> Admin Panel</h2>
+            </div>
+
+            <!-- Admin Stats -->
+            <div class="stat-grid admin-stats">
+                <div class="stat-card blue-gradient">
+                    <div class="stat-icon"><span class="material-icons">group</span></div>
+                    <div class="stat-info">
+                        <span class="stat-title">Total Users</span>
+                        <span class="stat-value" id="admin-total-users">0</span>
+                    </div>
+                </div>
+                <div class="stat-card orange-gradient">
+                    <div class="stat-icon"><span class="material-icons">pending_actions</span></div>
+                    <div class="stat-info">
+                        <span class="stat-title">Pending Loans</span>
+                        <span class="stat-value" id="admin-pending-loans">0</span>
+                    </div>
+                </div>
+                <div class="stat-card green-gradient">
+                    <div class="stat-icon"><span class="material-icons">paid</span></div>
+                    <div class="stat-info">
+                        <span class="stat-title">Total Disbursed</span>
+                        <span class="stat-value" id="admin-disbursed">₹0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Tabs -->
+            <div class="admin-tabs mt-4">
+                <button class="tab-btn active" data-tab="admin-users-tab" onclick="AdminModule.switchTab('users')">
+                    <span class="material-icons">people</span> Users
+                </button>
+                <button class="tab-btn" data-tab="admin-loans-tab" onclick="AdminModule.switchTab('loans')">
+                    <span class="material-icons">account_balance</span> Loans
+                </button>
+                <button class="tab-btn" data-tab="admin-expenses-tab" onclick="AdminModule.switchTab('expenses')">
+                    <span class="material-icons">receipt</span> Expenses
+                </button>
+            </div>
+
+            <!-- Admin Content -->
+            <div class="admin-content mt-3">
+                <div id="admin-users-tab" class="admin-tab-content active">
+                    <div class="search-box mb-3">
+                        <span class="material-icons">search</span>
+                        <input type="text" id="admin-user-search" placeholder="Search users..." oninput="AdminModule.searchUsers(this.value)">
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="admin-users-table">
+                            <thead>
+                                <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody id="admin-users-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="admin-loans-tab" class="admin-tab-content">
+                    <div class="filter-row mb-3">
+                        <select id="admin-loan-filter" class="filter-select" onchange="AdminModule.filterLoans(this.value)">
+                            <option value="ALL">All Status</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="admin-loans-table">
+                            <thead>
+                                <tr><th>User</th><th>Type</th><th>Amount</th><th>Rate</th><th>Tenure</th><th>Status</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody id="admin-loans-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="admin-expenses-tab" class="admin-tab-content">
+                    <div class="table-container">
+                        <table class="data-table" id="admin-expenses-table">
+                            <thead>
+                                <tr><th>User</th><th>Expense</th><th>Category</th><th>Amount</th><th>Date</th></tr>
+                            </thead>
+                            <tbody id="admin-expenses-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== 11. NOTIFICATIONS SCREEN ======== -->
+        <section id="notifications-screen" class="screen">
+            <div class="screen-header">
+                <h2><span class="material-icons">notifications</span> Notifications</h2>
+                <button class="btn btn-sm btn-outline" onclick="NotifModule.markAllRead()">
+                    <span class="material-icons">done_all</span> Mark All Read
+                </button>
+            </div>
+            <div id="notif-list" class="notif-list"></div>
+        </section>
+
+    </main>
+
+    <!-- ============================================ -->
+    <!-- BOTTOM NAVIGATION -->
+    <!-- ============================================ -->
+    <nav id="bottom-nav" class="nav-bar hidden">
+        <a href="#dashboard" class="nav-item" data-screen="dashboard">
+            <span class="material-icons">dashboard</span>
+            <span>Dashboard</span>
+        </a>
+        <a href="#loan" class="nav-item" data-screen="loan">
+            <span class="material-icons">account_balance</span>
+            <span>Loans</span>
+        </a>
+        <a href="#expense" class="nav-item" data-screen="expense">
+            <span class="material-icons">receipt_long</span>
+            <span>Expenses</span>
+        </a>
+        <a href="#emi" class="nav-item" data-screen="emi">
+            <span class="material-icons">payment</span>
+            <span>EMI</span>
+        </a>
+        <a href="#reports" class="nav-item" data-screen="reports">
+            <span class="material-icons">bar_chart</span>
+            <span>Reports</span>
+        </a>
+        <a href="#profile" class="nav-item" data-screen="profile">
+            <span class="material-icons">person</span>
+            <span>Profile</span>
+        </a>
+    </nav>
+
+    <!-- ============================================ -->
+    <!-- TOAST CONTAINER -->
+    <!-- ============================================ -->
+    <div id="toast-container"></div>
+
+    <!-- ============================================ -->
+    <!-- MODALS -->
+    <!-- ============================================ -->
+
+    <!-- Expense Add/Edit Modal -->
+    <div id="expense-modal" class="modal-overlay">
+        <div class="modal-content card glass-card">
+            <div class="modal-header">
+                <h3 id="expense-modal-title"><span class="material-icons">add_circle</span> Add Expense</h3>
+                <button class="icon-btn" onclick="ExpenseModule.closeModal()"><span class="material-icons">close</span></button>
+            </div>
+            <form id="expense-form" novalidate>
+                <input type="hidden" id="exp-edit-id">
+                <div class="input-group">
+                    <span class="material-icons input-icon">label</span>
+                    <input type="text" id="exp-name" required placeholder=" ">
+                    <label for="exp-name">Expense Name</label>
+                </div>
+                <div class="input-group">
+                    <span class="material-icons input-icon">currency_rupee</span>
+                    <input type="number" id="exp-amount" required min="1" placeholder=" ">
+                    <label for="exp-amount">Amount (₹)</label>
+                </div>
+                <div class="input-group">
+                    <span class="material-icons input-icon">category</span>
+                    <select id="exp-category" required>
+                        <option value="EDUCATION">🎓 Education</option>
+                        <option value="MEDICAL">🏥 Medical</option>
+                        <option value="BUSINESS">💼 Business</option>
+                        <option value="PERSONAL">🧑 Personal</option>
+                        <option value="HOME">🏠 Home</option>
+                        <option value="AGRICULTURE">🌾 Agriculture</option>
+                        <option value="OTHER">📦 Other</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <span class="material-icons input-icon">event</span>
+                    <input type="date" id="exp-date" required>
+                    <label for="exp-date" class="date-label">Date</label>
+                </div>
+                <div class="input-group">
+                    <span class="material-icons input-icon">notes</span>
+                    <input type="text" id="exp-desc" placeholder=" ">
+                    <label for="exp-desc">Description (Optional)</label>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary flex-1">
+                        <span class="material-icons">save</span> Save
+                    </button>
+                    <button type="button" class="btn btn-outline flex-1" onclick="ExpenseModule.closeModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div id="edit-profile-modal" class="modal-overlay">
+        <div class="modal-content card glass-card">
+            <div class="modal-header">
+                <h3><span class="material-icons">edit</span> Edit Profile</h3>
+                <button class="icon-btn" onclick="ProfileModule.closeEditModal()"><span class="material-icons">close</span></button>
+            </div>
+            <form id="edit-profile-form" novalidate>
+                <div class="input-group">
+                    <span class="material-icons input-icon">person</span>
+                    <input type="text" id="edit-name" required placeholder=" ">
+                    <label for="edit-name">Full Name</label>
+                </div>
+                <div class="input-group">
+                    <span class="material-icons input-icon">phone</span>
+                    <input type="tel" id="edit-phone" required maxlength="10" placeholder=" ">
+                    <label for="edit-phone">Phone Number</label>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary flex-1">Save Changes</button>
+                    <button type="button" class="btn btn-outline flex-1" onclick="ProfileModule.closeEditModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="password-modal" class="modal-overlay">
+        <div class="modal-content card glass-card">
+            <div class="modal-header">
+                <h3><span class="material-icons">lock</span> Change Password</h3>
+                <button class="icon-btn" onclick="ProfileModule.closePasswordModal()"><span class="material-icons">close</span></button>
+            </div>
+            <form id="password-form" novalidate>
+                <div class="input-group">
+                    <span class="material-icons input-icon">lock_open</span>
+                    <input type="password" id="old-password" required placeholder=" ">
+                    <label for="old-password">Current Password</label>
+                </div>
+                <div class="input-group">
+                    <span class="material-icons input-icon">lock</span>
+                    <input type="password" id="new-password" required minlength="8" placeholder=" ">
+                    <label for="new-password">New Password</label>
+                </div>
+                <div class="input-group">
+                    <span class="material-icons input-icon">lock_outline</span>
+                    <input type="password" id="confirm-new-password" required placeholder=" ">
+                    <label for="confirm-new-password">Confirm New Password</label>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary flex-1">Update Password</button>
+                    <button type="button" class="btn btn-outline flex-1" onclick="ProfileModule.closePasswordModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-content card glass-card modal-sm">
+            <div class="modal-header">
+                <h3><span class="material-icons">warning</span> Confirm Delete</h3>
+            </div>
+            <p id="confirm-msg">Are you sure you want to delete this item?</p>
+            <div class="btn-group mt-3">
+                <button class="btn btn-danger flex-1" id="confirm-yes-btn">Delete</button>
+                <button class="btn btn-outline flex-1" onclick="closeConfirmModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

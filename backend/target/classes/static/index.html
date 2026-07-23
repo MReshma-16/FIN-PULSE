@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FIN PULSE</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --panel: rgba(255,255,255,0.08);
+      --panel-strong: rgba(255,255,255,0.14);
+      --text: #f7fbff;
+      --muted: #9bc7db;
+      --accent: #2dd4bf;
+      --accent-2: #38bdf8;
+      --border: rgba(255,255,255,0.16);
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      background: radial-gradient(circle at top left, #13314a 0%, var(--bg) 45%, #030813 100%);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 28px 20px 60px; }
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center; padding: 10px 0 24px;
+    }
+    .brand { font-size: 1.3rem; font-weight: 800; letter-spacing: 0.04em; }
+    .pill { display: inline-block; padding: 8px 12px; border-radius: 999px; background: rgba(45,212,191,.18); color: #bffbf4; font-size: .85rem; }
+    .hero { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 22px; align-items: center; }
+    .hero-copy h1 { font-size: clamp(2rem, 4vw, 3.2rem); margin: 0 0 12px; }
+    .hero-copy p { color: var(--muted); font-size: 1.05rem; max-width: 620px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 22px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.25);
+      backdrop-filter: blur(18px);
+    }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
+    .stat { background: var(--panel-strong); border-radius: 16px; padding: 14px; }
+    .stat strong { font-size: 1.2rem; display: block; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 20px; }
+    label { display: block; font-size: .92rem; color: var(--muted); margin-top: 10px; }
+    input, select, button, textarea { width: 100%; padding: 12px 13px; margin-top: 7px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); font-size: 1rem; }
+    input, select, textarea { background: rgba(255,255,255,0.08); color: var(--text); }
+    button { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: white; font-weight: 700; cursor: pointer; border: none; transition: transform .15s ease; }
+    button:hover { transform: translateY(-1px); }
+    .message { margin-top: 10px; color: #d9fef8; min-height: 22px; }
+    .section-title { font-size: 1.2rem; margin: 0 0 6px; }
+    .muted { color: var(--muted); }
+    @media (max-width: 900px) { .hero, .grid { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .stats { grid-template-columns: 1fr; } .topbar { flex-direction: column; align-items: flex-start; gap: 8px; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <div class="brand">FIN PULSE</div>
+      <span class="pill">Smart financial planning · Secure · Modern</span>
+    </div>
+
+    <div class="hero">
+      <div class="card hero-copy">
+        <h1>Modern finance planning for ambitious people.</h1>
+        <p>FIN PULSE helps you model loans, track spending, and understand your cash flow with a polished, professional dashboard experience.</p>
+        <div class="stats">
+          <div class="stat"><strong id="loanCount">0</strong><span class="muted">Loans</span></div>
+          <div class="stat"><strong id="expenseCount">0</strong><span class="muted">Expenses</span></div>
+          <div class="stat"><strong id="totalSpent">0.00</strong><span class="muted">Spent</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="section-title">Create your account</h3>
+        <p class="muted">Get started with a secure, simple profile.</p>
+        <label>Full name</label>
+        <input id="fullName" placeholder="Full name" />
+        <label>Email</label>
+        <input id="email" placeholder="Email" />
+        <label>Phone</label>
+        <input id="phone" placeholder="Phone" />
+        <label>Password</label>
+        <input id="password" type="password" placeholder="Password" />
+        <label>Confirm password</label>
+        <input id="confirmPassword" type="password" placeholder="Confirm password" />
+        <button onclick="registerUser()">Register account</button>
+        <div id="message" class="message"></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3 class="section-title">Loan planner</h3>
+        <p class="muted">Estimate monthly obligations before you commit.</p>
+        <label>Loan amount</label>
+        <input id="loanAmount" placeholder="Loan amount" />
+        <label>Interest rate (%)</label>
+        <input id="interestRate" placeholder="Interest rate" />
+        <label>Tenure (years)</label>
+        <input id="loanTenure" placeholder="Loan tenure in years" />
+        <label>Purpose</label>
+        <input id="purpose" placeholder="Purpose" />
+        <label>Monthly income</label>
+        <input id="monthlyIncome" placeholder="Monthly income" />
+        <label>Loan type</label>
+        <select id="loanType">
+          <option value="PERSONAL">Personal</option>
+          <option value="HOME">Home</option>
+          <option value="EDUCATION">Education</option>
+        </select>
+        <button onclick="createLoan()">Save loan</button>
+      </div>
+      <div class="card">
+        <h3 class="section-title">Expense tracker</h3>
+        <p class="muted">Capture daily spending and keep your budget controlled.</p>
+        <label>Expense name</label>
+        <input id="expenseName" placeholder="Expense name" />
+        <label>Amount</label>
+        <input id="expenseAmount" placeholder="Amount" />
+        <label>Category</label>
+        <input id="expenseCategory" placeholder="Category" />
+        <label>Date</label>
+        <input id="expenseDate" type="date" />
+        <label>Description</label>
+        <textarea id="expenseDescription" placeholder="Description" rows="3"></textarea>
+        <button onclick="createExpense()">Add expense</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let userId = null;
+    async function registerUser() {
+      const payload = {
+        fullName: document.getElementById('fullName').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        password: document.getElementById('password').value,
+        confirmPassword: document.getElementById('confirmPassword').value
+      };
+      const res = await fetch('/api/users/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (res.ok) {
+        userId = data.id;
+        document.getElementById('message').innerText = 'Account created successfully.';
+      } else {
+        document.getElementById('message').innerText = data.message || 'Registration failed.';
+      }
+    }
+
+    async function createLoan() {
+      if (!userId) { alert('Please register first.'); return; }
+      const payload = {
+        loanType: document.getElementById('loanType').value,
+        loanAmount: parseFloat(document.getElementById('loanAmount').value),
+        interestRate: parseFloat(document.getElementById('interestRate').value),
+        loanTenure: parseInt(document.getElementById('loanTenure').value, 10),
+        purpose: document.getElementById('purpose').value,
+        monthlyIncome: parseFloat(document.getElementById('monthlyIncome').value)
+      };
+      const res = await fetch(`/api/loans/${userId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (res.ok) {
+        updateSummary();
+        alert('Loan saved.');
+      }
+    }
+
+    async function createExpense() {
+      if (!userId) { alert('Please register first.'); return; }
+      const payload = {
+        loanId: userId,
+        name: document.getElementById('expenseName').value,
+        amount: parseFloat(document.getElementById('expenseAmount').value),
+        category: document.getElementById('expenseCategory').value,
+        date: document.getElementById('expenseDate').value,
+        description: document.getElementById('expenseDescription').value
+      };
+      const res = await fetch('/api/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (res.ok) {
+        updateSummary();
+        alert('Expense added.');
+      }
+    }
+
+    async function updateSummary() {
+      const loansRes = await fetch(`/api/loans/${userId}`);
+      const loansData = await loansRes.json();
+      const expensesRes = await fetch(`/api/expenses/${userId}`);
+      const expensesData = await expensesRes.json();
+      document.getElementById('loanCount').innerText = loansData.length;
+      document.getElementById('expenseCount').innerText = expensesData.length;
+      document.getElementById('totalSpent').innerText = expensesData.reduce((sum, e) => sum + (e.amount || 0), 0).toFixed(2);
+    }
+  </script>
+</body>
+</html>
