@@ -6,7 +6,7 @@
     <meta name="description" content="FIN PULSE - Smart Loan Utilization & Financial Management. Track loans, expenses, EMIs with AI-powered insights.">
     <meta name="keywords" content="loan management, expense tracker, EMI calculator, financial planning">
     <meta name="author" content="FIN PULSE">
-    <title>FIN PULSE – Your Pulse on Better Finances</title>
+    <title>FIN PULSE – Smart Loan Utilization</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -39,28 +39,54 @@
 </head>
 <body>
     <!-- ============================================ -->
-    <!-- HEADER -->
+    <!-- CENTERED HEADER -->
     <!-- ============================================ -->
     <header id="main-header" class="hidden">
-        <div class="header-left">
-            <div class="logo">
+        <div class="header-container">
+            <div class="logo" onclick="location.hash='#dashboard'">
                 <span class="material-icons logo-icon">monitoring</span>
                 <span>FIN PULSE</span>
             </div>
-        </div>
-        <div class="header-actions">
-            <button id="theme-toggle" class="icon-btn" title="Toggle Dark Mode">
-                <span class="material-icons" id="theme-icon">dark_mode</span>
-            </button>
-            <button id="notif-btn" class="icon-btn" onclick="location.hash='#notifications'" title="Notifications">
-                <span class="material-icons">notifications</span>
-                <span id="notif-badge" class="badge hidden">0</span>
-            </button>
+
+            <!-- Desktop Navigation Links -->
+            <nav class="header-nav-desktop">
+                <a href="#dashboard" class="header-nav-link" data-screen="dashboard">
+                    <span class="material-icons">dashboard</span> Dashboard
+                </a>
+                <a href="#loan" class="header-nav-link" data-screen="loan">
+                    <span class="material-icons">account_balance</span> Loans
+                </a>
+                <a href="#expense" class="header-nav-link" data-screen="expense">
+                    <span class="material-icons">receipt_long</span> Expenses
+                </a>
+                <a href="#emi" class="header-nav-link" data-screen="emi">
+                    <span class="material-icons">payment</span> EMI
+                </a>
+                <a href="#reports" class="header-nav-link" data-screen="reports">
+                    <span class="material-icons">bar_chart</span> Reports
+                </a>
+                <a href="#profile" class="header-nav-link" data-screen="profile">
+                    <span class="material-icons">person</span> Profile
+                </a>
+                <a href="#admin" class="header-nav-link admin-nav-item hidden" data-screen="admin">
+                    <span class="material-icons">admin_panel_settings</span> Admin
+                </a>
+            </nav>
+
+            <div class="header-actions">
+                <button id="theme-toggle" class="icon-btn" title="Toggle Dark Mode">
+                    <span class="material-icons" id="theme-icon">dark_mode</span>
+                </button>
+                <button id="notif-btn" class="icon-btn" onclick="location.hash='#notifications'" title="Notifications">
+                    <span class="material-icons">notifications</span>
+                    <span id="notif-badge" class="badge hidden">0</span>
+                </button>
+            </div>
         </div>
     </header>
 
     <!-- ============================================ -->
-    <!-- MAIN CONTENT -->
+    <!-- MAIN CONTENT (CENTERED) -->
     <!-- ============================================ -->
     <main id="app-container">
 
@@ -77,7 +103,7 @@
                 </div>
                 <h1 class="logo-pulse">FIN PULSE</h1>
                 <p class="splash-tagline">YOUR PULSE ON BETTER FINANCES</p>
-                <p class="splash-desc">Track loans, manage expenses, monitor EMIs — all in one place with AI-powered financial insights.</p>
+                <p class="splash-desc">Track loans, manage expenses, monitor EMIs with AI-powered financial insights.</p>
                 <div class="splash-actions">
                     <button class="btn btn-primary btn-lg btn-glow" onclick="location.hash='#register'" title="For New User">
                         <span class="material-icons">person_add</span> Register
@@ -703,33 +729,35 @@
     </main>
 
     <!-- ============================================ -->
-    <!-- BOTTOM NAVIGATION -->
+    <!-- BOTTOM NAVIGATION (MOBILE) -->
     <!-- ============================================ -->
     <nav id="bottom-nav" class="nav-bar hidden">
-        <a href="#dashboard" class="nav-item" data-screen="dashboard">
-            <span class="material-icons">dashboard</span>
-            <span>Dashboard</span>
-        </a>
-        <a href="#loan" class="nav-item" data-screen="loan">
-            <span class="material-icons">account_balance</span>
-            <span>Loans</span>
-        </a>
-        <a href="#expense" class="nav-item" data-screen="expense">
-            <span class="material-icons">receipt_long</span>
-            <span>Expenses</span>
-        </a>
-        <a href="#emi" class="nav-item" data-screen="emi">
-            <span class="material-icons">payment</span>
-            <span>EMI</span>
-        </a>
-        <a href="#reports" class="nav-item" data-screen="reports">
-            <span class="material-icons">bar_chart</span>
-            <span>Reports</span>
-        </a>
-        <a href="#profile" class="nav-item" data-screen="profile">
-            <span class="material-icons">person</span>
-            <span>Profile</span>
-        </a>
+        <div class="nav-container">
+            <a href="#dashboard" class="nav-item" data-screen="dashboard">
+                <span class="material-icons">dashboard</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="#loan" class="nav-item" data-screen="loan">
+                <span class="material-icons">account_balance</span>
+                <span>Loans</span>
+            </a>
+            <a href="#expense" class="nav-item" data-screen="expense">
+                <span class="material-icons">receipt_long</span>
+                <span>Expenses</span>
+            </a>
+            <a href="#emi" class="nav-item" data-screen="emi">
+                <span class="material-icons">payment</span>
+                <span>EMI</span>
+            </a>
+            <a href="#reports" class="nav-item" data-screen="reports">
+                <span class="material-icons">bar_chart</span>
+                <span>Reports</span>
+            </a>
+            <a href="#profile" class="nav-item" data-screen="profile">
+                <span class="material-icons">person</span>
+                <span>Profile</span>
+            </a>
+        </div>
     </nav>
 
     <!-- ============================================ -->

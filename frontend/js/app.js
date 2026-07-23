@@ -1,6 +1,6 @@
 /* =====================================================
-   FIN PULSE – Main Application
-   SPA Router, State Management, and Initialization
+   FIN PULSE – Main Application Controller
+   SPA Router, State Management, and User Data Sync
    ===================================================== */
 
 const App = {
@@ -17,11 +17,7 @@ const App = {
 
     // ─── Screen Registry ─────────────────────────────
     screens: ['splash', 'register', 'login', 'loan', 'expense', 'emi', 'dashboard', 'reports', 'profile', 'admin', 'notifications'],
-
-    // ─── Auth-required screens ───────────────────────
     authScreens: ['loan', 'expense', 'emi', 'dashboard', 'reports', 'profile', 'admin', 'notifications'],
-
-    // ─── Public screens ──────────────────────────────
     publicScreens: ['splash', 'register', 'login'],
 
     /* =====================================================
@@ -30,13 +26,12 @@ const App = {
     init() {
         console.log('🚀 FIN PULSE Initializing...');
 
-        // Load theme from localStorage
         this.loadTheme();
 
-        // Set up hash-based routing
+        // Router
         window.addEventListener('hashchange', () => this.handleRoute());
 
-        // Set up theme toggle
+        // Theme toggle
         const themeToggle = document.getElementById('theme-toggle');
         if (themeToggle) {
             themeToggle.addEventListener('click', () => this.toggleTheme());
@@ -48,15 +43,15 @@ const App = {
         if (typeof ExpenseModule !== 'undefined') ExpenseModule.init();
         if (typeof ProfileModule !== 'undefined') ProfileModule.init();
 
-        // Load initial data if user is logged in
+        // Load logged in user data
         if (this.currentUser) {
             this.loadAppData();
         }
 
-        // Handle initial route
+        // Handle route
         this.handleRoute();
 
-        // Set up confirm modal close handler
+        // Global Modal click handler
         window.addEventListener('click', (e) => {
             if (e.target.classList.contains('modal-overlay')) {
                 e.target.classList.remove('active');
@@ -67,42 +62,41 @@ const App = {
     },
 
     /* =====================================================
-       ROUTING
+       ROUTING & UI RENDER
        ===================================================== */
     handleRoute() {
         const hash = location.hash.replace('#', '') || 'splash';
         const screen = this.screens.includes(hash) ? hash : 'splash';
 
-        // Auth guard – redirect to splash if not logged in
+        // Guard: redirect to splash if trying to view protected screen without user
         if (this.authScreens.includes(screen) && !this.currentUser) {
             location.hash = '#splash';
             return;
         }
 
-        // If logged in and visiting splash/login/register, go to dashboard
-        if (this.currentUser && this.publicScreens.includes(screen)) {
-            // Allow splash visit but still show header/nav
+        // Guard: admin screen check
+        if (screen === 'admin' && this.currentUser && this.currentUser.role !== 'ADMIN') {
+            Utils.showToast('Admin access required', 'warning');
+            location.hash = '#dashboard';
+            return;
         }
 
         this.showScreen(screen);
     },
 
-    /**
-     * Show a specific screen and hide all others
-     */
     showScreen(screenId) {
         // Hide all screens
         document.querySelectorAll('.screen').forEach(s => {
             s.classList.remove('active');
         });
 
-        // Show target screen
+        // Activate requested screen
         const target = document.getElementById(`${screenId}-screen`);
         if (target) {
             target.classList.add('active');
         }
 
-        // Toggle header and nav visibility
+        // Show/Hide Header and Nav bars
         const header = document.getElementById('main-header');
         const nav = document.getElementById('bottom-nav');
         const isAuth = this.currentUser !== null;
@@ -111,29 +105,28 @@ const App = {
         if (header) header.classList.toggle('hidden', !showChrome);
         if (nav) nav.classList.toggle('hidden', !showChrome);
 
-        // Update nav active state
-        document.querySelectorAll('.nav-item').forEach(item => {
+        // Toggle Admin Link in Desktop Nav
+        const adminNavLink = document.querySelector('.admin-nav-item');
+        if (adminNavLink) {
+            adminNavLink.classList.toggle('hidden', !this.currentUser || this.currentUser.role !== 'ADMIN');
+        }
+
+        // Highlight Desktop & Mobile Active Links
+        document.querySelectorAll('.header-nav-link, .nav-item').forEach(item => {
             const itemScreen = item.getAttribute('data-screen') || item.getAttribute('href')?.replace('#', '');
             item.classList.toggle('active', itemScreen === screenId);
         });
 
-        // Render screen-specific content
+        // Trigger Screen Renderers
         this.renderScreen(screenId);
 
-        // Scroll to top
         window.scrollTo(0, 0);
     },
 
-    /**
-     * Navigate to a screen
-     */
     navigateTo(screen) {
         location.hash = `#${screen}`;
     },
 
-    /**
-     * Render screen-specific content
-     */
     renderScreen(screenId) {
         switch (screenId) {
             case 'dashboard':
@@ -149,7 +142,7 @@ const App = {
                 if (typeof EmiModule !== 'undefined') EmiModule.render();
                 break;
             case 'reports':
-                // Static screen, nothing to render dynamically
+                // Static template
                 break;
             case 'profile':
                 if (typeof ProfileModule !== 'undefined') ProfileModule.render();
@@ -188,44 +181,14 @@ const App = {
     },
 
     /* =====================================================
-       DATA MANAGEMENT
+       USER & DATA MANAGEMENT
        ===================================================== */
-
-    /**
-     * Load all application data (from API or mock)
-     */
     async loadAppData() {
-        try {
-            // Try loading from API first, fall back to mock data
-            const loans = await ApiService.getLoans();
-            this.state.loans = loans || MockData.loans;
-
-            const expenses = await ApiService.getExpenses();
-            this.state.expenses = expenses || MockData.expenses;
-
-            const notifications = await ApiService.getNotifications();
-            this.state.notifications = notifications || MockData.notifications;
-
-            // Initialize EMIs from mock if needed
-            if (this.state.emis.length === 0) {
-                MockData.init();
-            }
-
-            // Update notification badge
-            if (typeof NotifModule !== 'undefined') NotifModule.updateBadge();
-
-        } catch (err) {
-            console.warn('Using mock data:', err.message);
-            this.state.loans = MockData.loans;
-            this.state.expenses = MockData.expenses;
-            this.state.notifications = MockData.notifications;
-            MockData.init();
-        }
+        if (!this.currentUser) return;
+        UserStorage.loadData();
+        if (typeof NotifModule !== 'undefined') NotifModule.updateBadge();
     },
 
-    /**
-     * Set current user after login/register
-     */
     setUser(userData) {
         this.currentUser = {
             fullName: userData.fullName || userData.name || 'User',
@@ -235,11 +198,10 @@ const App = {
             createdAt: userData.createdAt || new Date().toISOString()
         };
         localStorage.setItem('fp_user', JSON.stringify(this.currentUser));
+        // Load data specific to this user
+        this.loadAppData();
     },
 
-    /**
-     * Clear user session (logout)
-     */
     clearUser() {
         this.currentUser = null;
         this.state = { loans: [], expenses: [], emis: [], notifications: [] };
@@ -248,20 +210,13 @@ const App = {
     }
 };
 
-/* =====================================================
-   GLOBAL HELPER: Close confirm modal
-   ===================================================== */
 function closeConfirmModal() {
     const modal = document.getElementById('confirm-modal');
     if (modal) modal.classList.remove('active');
 }
 
-/* =====================================================
-   BOOTSTRAP – Start the app when DOM is ready
-   ===================================================== */
 document.addEventListener('DOMContentLoaded', () => {
     App.init();
 });
 
-// Make App globally available
 window.App = App;

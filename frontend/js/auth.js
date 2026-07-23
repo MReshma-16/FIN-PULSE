@@ -1,41 +1,46 @@
+/* =====================================================
+   FIN PULSE – Auth Module
+   Handles User Registration and Login with Persistence Sync
+   ===================================================== */
+
 const AuthModule = {
     init() {
         const regForm = document.getElementById('register-form');
         const loginForm = document.getElementById('login-form');
         const forgotLink = document.getElementById('forgot-password-link');
-        
+
         if (regForm) {
-            regForm.addEventListener('submit', this.handleRegister.bind(this));
+            regForm.addEventListener('submit', (e) => this.handleRegister(e));
         }
         if (loginForm) {
-            loginForm.addEventListener('submit', this.handleLogin.bind(this));
+            loginForm.addEventListener('submit', (e) => this.handleLogin(e));
         }
         if (forgotLink) {
             forgotLink.addEventListener('click', (e) => {
                 e.preventDefault();
-                Utils.showToast('Password reset link sent to your email', 'success');
+                Utils.showToast('Password reset instructions sent to your email', 'info');
             });
         }
     },
-    
-    handleRegister(e) {
+
+    async handleRegister(e) {
         e.preventDefault();
         this.clearErrors();
-        
-        const name = document.getElementById('reg-name').value.trim();
+
+        const fullName = document.getElementById('reg-name').value.trim();
         const email = document.getElementById('reg-email').value.trim();
         const phone = document.getElementById('reg-phone').value.trim();
         const password = document.getElementById('reg-password').value;
         const confirm = document.getElementById('reg-confirm').value;
-        
+
         let isValid = true;
-        
-        if (!name) {
-            this.showError('reg-name', 'Name is required');
+
+        if (!fullName) {
+            this.showError('reg-name', 'Full Name is required');
             isValid = false;
         }
         if (!Utils.validateEmail(email)) {
-            this.showError('reg-email', 'Invalid email format');
+            this.showError('reg-email', 'Please enter a valid email');
             isValid = false;
         }
         if (!Utils.validatePhone(phone)) {
@@ -50,42 +55,49 @@ const AuthModule = {
             this.showError('reg-confirm', 'Passwords do not match');
             isValid = false;
         }
-        
+
         if (isValid) {
             try {
-                const user = ApiService.register({ name, email, phone, password });
-                App.currentUser = user;
-                localStorage.setItem('currentUser', JSON.stringify(user));
-                Utils.showToast('Registration successful', 'success');
-                App.navigateTo('loan');
+                const userData = await ApiService.register({ fullName, email, phoneNumber: phone, password });
+                App.setUser(userData);
+                Utils.showToast('Account registered successfully! Welcome to FIN PULSE', 'success');
+                App.navigateTo('dashboard');
             } catch (err) {
-                 Utils.showToast(err.message || 'Registration failed', 'error');
+                Utils.showToast(err.message || 'Registration failed', 'error');
             }
         }
     },
-    
-    handleLogin(e) {
+
+    async handleLogin(e) {
         e.preventDefault();
-        
+        this.clearErrors();
+
         const email = document.getElementById('login-email').value.trim();
         const password = document.getElementById('login-password').value;
-        
-        if (!email || !password) {
-            Utils.showToast('Please enter email and password', 'error');
-            return;
+
+        let isValid = true;
+
+        if (!Utils.validateEmail(email)) {
+            this.showError('login-email', 'Please enter a valid email');
+            isValid = false;
         }
-        
-        try {
-            const user = ApiService.login(email, password);
-            App.currentUser = user;
-            localStorage.setItem('currentUser', JSON.stringify(user));
-            Utils.showToast('Login successful', 'success');
-            App.navigateTo('dashboard');
-        } catch (err) {
-            Utils.showToast(err.message || 'Login failed', 'error');
+        if (!password) {
+            this.showError('login-password', 'Password is required');
+            isValid = false;
+        }
+
+        if (isValid) {
+            try {
+                const userData = await ApiService.login({ email, password });
+                App.setUser(userData);
+                Utils.showToast(`Welcome back, ${userData.fullName}!`, 'success');
+                App.navigateTo('dashboard');
+            } catch (err) {
+                Utils.showToast(err.message || 'Login failed. Check your credentials.', 'error');
+            }
         }
     },
-    
+
     showError(inputId, message) {
         const errorEl = document.getElementById(`${inputId}-error`);
         if (errorEl) {
@@ -96,7 +108,7 @@ const AuthModule = {
             inputEl.parentElement.classList.add('error');
         }
     },
-    
+
     clearErrors() {
         const errorEls = document.querySelectorAll('[id$="-error"]');
         errorEls.forEach(el => el.textContent = '');
@@ -104,4 +116,5 @@ const AuthModule = {
         inputGroups.forEach(el => el.classList.remove('error'));
     }
 };
+
 window.AuthModule = AuthModule;

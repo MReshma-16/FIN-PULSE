@@ -1,14 +1,13 @@
 /* =====================================================
-   FIN PULSE – API Service Layer
-   Handles all backend communication with fallback mock data
+   FIN PULSE – API Service Layer with User-Specific Persistence
+   Handles all backend communication with local storage persistence per user
    ===================================================== */
 
 const ApiService = {
     BASE_URL: 'http://localhost:8080/api',
     token: localStorage.getItem('fp_token') || null,
-    useMock: true, // Will be set to false if backend is reachable
+    useMock: true,
 
-    // ─── Token Management ────────────────────────────
     setToken(token) {
         this.token = token;
         localStorage.setItem('fp_token', token);
@@ -23,7 +22,6 @@ const ApiService = {
         localStorage.removeItem('fp_token');
     },
 
-    // ─── HTTP Request Helper ─────────────────────────
     async request(endpoint, method = 'GET', body = null) {
         try {
             const headers = { 'Content-Type': 'application/json' };
@@ -39,12 +37,8 @@ const ApiService = {
             this.useMock = false;
             return data;
         } catch (err) {
-            // If backend is unreachable, fall back to mock
-            if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-                this.useMock = true;
-                return null; // Caller will use mock data
-            }
-            throw err;
+            this.useMock = true;
+            return null; // Fall back to user-persisted mock data
         }
     },
 
@@ -55,15 +49,29 @@ const ApiService = {
             this.setToken(res.data.token);
             return res.data;
         }
-        // Mock registration
-        const mockUser = {
-            token: 'mock_jwt_token_' + Date.now(),
-            email: data.email,
+
+        // Local Storage User Registry
+        const usersDb = JSON.parse(localStorage.getItem('fp_users_db')) || [];
+        const existing = usersDb.find(u => u.email.toLowerCase() === data.email.toLowerCase());
+        if (existing) {
+            throw new Error('User with this email already exists!');
+        }
+
+        const newUser = {
+            id: 'user_' + Date.now(),
+            email: data.email.toLowerCase(),
+            password: data.password, // In real app hashed on backend
             fullName: data.fullName,
-            role: 'USER'
+            phone: data.phoneNumber || data.phone || '9876543210',
+            role: 'USER',
+            createdAt: new Date().toISOString()
         };
-        this.setToken(mockUser.token);
-        return mockUser;
+        usersDb.push(newUser);
+        localStorage.setItem('fp_users_db', JSON.stringify(usersDb));
+
+        const token = 'jwt_token_' + Date.now();
+        this.setToken(token);
+        return { token, email: newUser.email, fullName: newUser.fullName, role: newUser.role, phone: newUser.phone };
     },
 
     async login(data) {
@@ -72,13 +80,42 @@ const ApiService = {
             this.setToken(res.data.token);
             return res.data;
         }
-        // Mock login – accept demo credentials
-        if (data.email === 'admin@finpulse.com') {
-            const admin = { token: 'mock_admin_token', email: data.email, fullName: 'Admin User', role: 'ADMIN' };
+
+        const emailLower = data.email.toLowerCase();
+
+        // Check if admin
+        if (emailLower === 'admin@finpulse.com') {
+            const admin = { token: 'mock_admin_token', email: 'admin@finpulse.com', fullName: 'Admin User', role: 'ADMIN', phone: '9876543210' };
             this.setToken(admin.token);
             return admin;
         }
-        const mockUser = { token: 'mock_jwt_token_' + Date.now(), email: data.email, fullName: 'Demo User', role: 'USER' };
+
+        // Check registered users in local storage
+        const usersDb = JSON.parse(localStorage.getItem('fp_users_db')) || [];
+        const found = usersDb.find(u => u.email.toLowerCase() === emailLower);
+
+        if (found) {
+            if (data.password && found.password && data.password !== found.password) {
+                throw new Error('Invalid email or password');
+            }
+            const token = 'jwt_token_' + Date.now();
+            this.setToken(token);
+            return { token, email: found.email, fullName: found.fullName, role: found.role, phone: found.phone };
+        }
+
+        // If demo user or new login without registration
+        const mockUser = {
+            token: 'jwt_token_' + Date.now(),
+            email: data.email,
+            fullName: data.email.split('@')[0].replace('.', ' ').toUpperCase(),
+            role: 'USER',
+            phone: '9876543210'
+        };
+
+        // Save demo user into registry
+        usersDb.push({ ...mockUser, password: data.password || 'password123' });
+        localStorage.setItem('fp_users_db', JSON.stringify(usersDb));
+
         this.setToken(mockUser.token);
         return mockUser;
     },
@@ -87,23 +124,26 @@ const ApiService = {
     async getLoans() {
         const res = await this.request('/loans');
         if (res && res.data) return res.data;
-        return MockData.loans;
+        return UserStorage.loadData().loans;
     },
 
     async createLoan(data) {
         const res = await this.request('/loans', 'POST', data);
         if (res && res.data) return res.data;
-        // Mock: add to local state
+
         const calc = Utils.calculateEmi(data.loanAmount, data.interestRate, data.loanTenure);
         const newLoan = {
             id: Utils.generateId(), ...data,
             monthlyEmi: calc.emi, totalInterest: calc.totalInterest,
             totalRepayment: calc.totalRepayment, utilizedAmount: 0,
-            remainingBalance: data.loanAmount, status: 'APPROVED',
+            remainingBalance: parseFloat(data.loanAmount), status: 'APPROVED',
             createdAt: new Date().toISOString()
         };
+
         App.state.loans.push(newLoan);
-        MockData.generateEmis(newLoan);
+        UserStorage.generateEmisForLoan(newLoan);
+        UserStorage.saveData();
+
         return newLoan;
     },
 
@@ -111,7 +151,10 @@ const ApiService = {
         const res = await this.request(`/loans/${id}/approve`, 'PUT');
         if (res) return res.data;
         const loan = App.state.loans.find(l => l.id === id);
-        if (loan) { loan.status = 'APPROVED'; }
+        if (loan) {
+            loan.status = 'APPROVED';
+            UserStorage.saveData();
+        }
         return loan;
     },
 
@@ -119,7 +162,10 @@ const ApiService = {
         const res = await this.request(`/loans/${id}/reject`, 'PUT');
         if (res) return res.data;
         const loan = App.state.loans.find(l => l.id === id);
-        if (loan) { loan.status = 'REJECTED'; }
+        if (loan) {
+            loan.status = 'REJECTED';
+            UserStorage.saveData();
+        }
         return loan;
     },
 
@@ -127,38 +173,45 @@ const ApiService = {
     async getExpenses() {
         const res = await this.request('/expenses');
         if (res && res.data) return res.data;
-        return MockData.expenses;
+        return UserStorage.loadData().expenses;
     },
 
     async addExpense(data) {
         const res = await this.request('/expenses', 'POST', data);
         if (res && res.data) return res.data;
+
         const exp = { id: Utils.generateId(), ...data, createdAt: new Date().toISOString() };
         App.state.expenses.push(exp);
-        // Update loan utilization
+
         const loan = App.state.loans.find(l => l.id === data.loanId);
         if (loan) {
             loan.utilizedAmount = (loan.utilizedAmount || 0) + parseFloat(data.expenseAmount || data.amount);
             loan.remainingBalance = loan.loanAmount - loan.utilizedAmount;
         }
+
+        UserStorage.saveData();
         return exp;
     },
 
     async updateExpense(id, data) {
         const res = await this.request(`/expenses/${id}`, 'PUT', data);
         if (res && res.data) return res.data;
+
         const idx = App.state.expenses.findIndex(e => e.id === id);
-        if (idx >= 0) { App.state.expenses[idx] = { ...App.state.expenses[idx], ...data }; }
+        if (idx >= 0) {
+            App.state.expenses[idx] = { ...App.state.expenses[idx], ...data };
+            UserStorage.saveData();
+        }
         return App.state.expenses[idx];
     },
 
     async deleteExpense(id) {
         const res = await this.request(`/expenses/${id}`, 'DELETE');
         if (res) return res;
+
         const idx = App.state.expenses.findIndex(e => e.id === id);
         if (idx >= 0) {
             const removed = App.state.expenses.splice(idx, 1)[0];
-            // Recalculate loan utilization
             const loan = App.state.loans.find(l => l.id === removed.loanId);
             if (loan) {
                 const totalUsed = App.state.expenses
@@ -167,6 +220,7 @@ const ApiService = {
                 loan.utilizedAmount = totalUsed;
                 loan.remainingBalance = loan.loanAmount - totalUsed;
             }
+            UserStorage.saveData();
         }
         return { success: true };
     },
@@ -181,10 +235,23 @@ const ApiService = {
     async payEmi(id) {
         const res = await this.request(`/emi/${id}/pay`, 'PUT');
         if (res && res.data) return res.data;
+
         const emi = App.state.emis.find(e => e.id === id);
         if (emi) {
             emi.status = 'PAID';
             emi.paidDate = new Date().toISOString();
+
+            // Add notification
+            App.state.notifications.unshift({
+                id: Utils.generateId(),
+                title: 'EMI Paid',
+                message: `EMI #${emi.emiNumber} of ${Utils.formatCurrency(emi.emiAmount)} marked as paid.`,
+                type: 'EMI_PAID',
+                isRead: false,
+                createdAt: new Date().toISOString()
+            });
+
+            UserStorage.saveData();
         }
         return emi;
     },
@@ -193,21 +260,25 @@ const ApiService = {
     async getDashboard() {
         const res = await this.request('/dashboard');
         if (res && res.data) return res.data;
-        return MockData.getDashboardData();
+        return UserStorage.getDashboardData();
     },
 
     // ─── Notification APIs ───────────────────────────
     async getNotifications() {
         const res = await this.request('/notifications');
         if (res && res.data) return res.data;
-        return MockData.notifications;
+        return UserStorage.loadData().notifications;
     },
 
     async markNotificationRead(id) {
         const res = await this.request(`/notifications/${id}/read`, 'PUT');
         if (res) return res;
+
         const n = App.state.notifications.find(x => x.id === id);
-        if (n) n.isRead = true;
+        if (n) {
+            n.isRead = true;
+            UserStorage.saveData();
+        }
         return { success: true };
     },
 
@@ -221,7 +292,10 @@ const ApiService = {
     async updateProfile(data) {
         const res = await this.request('/users/profile', 'PUT', data);
         if (res && res.data) return res.data;
+
         Object.assign(App.currentUser, data);
+        localStorage.setItem('fp_user', JSON.stringify(App.currentUser));
+        UserStorage.saveData();
         return App.currentUser;
     },
 
@@ -229,86 +303,95 @@ const ApiService = {
     async adminGetUsers() {
         const res = await this.request('/admin/users');
         if (res && res.data) return res.data;
-        return MockData.allUsers;
+        return JSON.parse(localStorage.getItem('fp_users_db')) || MockData.allUsers;
     },
 
     async adminGetLoans() {
         const res = await this.request('/admin/loans');
         if (res && res.data) return res.data;
-        return MockData.allLoans;
+        return App.state.loans;
     }
 };
 
 /* =====================================================
-   MOCK DATA – Used when backend is unavailable
+   USER STORAGE MANAGER – Keyed per logged-in user
    ===================================================== */
-const MockData = {
-    loans: [
-        {
-            id: 'loan_1', loanType: 'EDUCATION', loanAmount: 500000,
-            interestRate: 8.5, loanTenure: 5, purposeOfLoan: 'MBA Program',
-            monthlyIncome: 35000, monthlyEmi: 10247, totalInterest: 114820,
-            totalRepayment: 614820, utilizedAmount: 185000,
-            remainingBalance: 315000, status: 'APPROVED',
-            createdAt: '2026-01-15'
-        },
-        {
-            id: 'loan_2', loanType: 'PERSONAL', loanAmount: 200000,
-            interestRate: 12, loanTenure: 3, purposeOfLoan: 'Home Renovation',
-            monthlyIncome: 35000, monthlyEmi: 6643, totalInterest: 39148,
-            totalRepayment: 239148, utilizedAmount: 50000,
-            remainingBalance: 150000, status: 'APPROVED',
-            createdAt: '2026-03-01'
+const UserStorage = {
+    getUserKey() {
+        const user = App.currentUser;
+        if (!user || !user.email) return 'fp_user_data_default';
+        return `fp_user_data_${user.email.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    },
+
+    loadData() {
+        const key = this.getUserKey();
+        const saved = localStorage.getItem(key);
+
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                App.state.loans = parsed.loans || [];
+                App.state.expenses = parsed.expenses || [];
+                App.state.emis = parsed.emis || [];
+                App.state.notifications = parsed.notifications || [];
+                return App.state;
+            } catch (e) {
+                console.error('Failed to parse user storage:', e);
+            }
         }
-    ],
 
-    expenses: [
-        { id: 'exp_1', loanId: 'loan_1', expenseName: 'Semester 1 Tuition', expenseAmount: 75000, category: 'EDUCATION', expenseDate: '2026-02-10', description: 'Tuition fee' },
-        { id: 'exp_2', loanId: 'loan_1', expenseName: 'Books & Materials', expenseAmount: 15000, category: 'EDUCATION', expenseDate: '2026-02-15', description: 'Textbooks' },
-        { id: 'exp_3', loanId: 'loan_1', expenseName: 'Laptop', expenseAmount: 65000, category: 'PERSONAL', expenseDate: '2026-02-20', description: 'For coursework' },
-        { id: 'exp_4', loanId: 'loan_1', expenseName: 'Hostel Deposit', expenseAmount: 25000, category: 'PERSONAL', expenseDate: '2026-03-01', description: 'Security deposit' },
-        { id: 'exp_5', loanId: 'loan_1', expenseName: 'Medical Exam', expenseAmount: 5000, category: 'MEDICAL', expenseDate: '2026-03-15', description: 'Required checkup' },
-        { id: 'exp_6', loanId: 'loan_2', expenseName: 'Kitchen Reno', expenseAmount: 30000, category: 'HOME', expenseDate: '2026-04-10', description: 'Kitchen cabinets' },
-        { id: 'exp_7', loanId: 'loan_2', expenseName: 'Bathroom Fittings', expenseAmount: 20000, category: 'HOME', expenseDate: '2026-04-20', description: 'New fixtures' }
-    ],
+        // First time user login – seed initial data
+        const initialLoans = [
+            {
+                id: 'loan_1', loanType: 'EDUCATION', loanAmount: 500000,
+                interestRate: 8.5, loanTenure: 5, purposeOfLoan: 'Higher Studies',
+                monthlyIncome: 45000, monthlyEmi: 10247, totalInterest: 114820,
+                totalRepayment: 614820, utilizedAmount: 150000,
+                remainingBalance: 350000, status: 'APPROVED',
+                createdAt: '2026-01-15'
+            }
+        ];
 
-    emis: [],
+        const initialExpenses = [
+            { id: 'exp_1', loanId: 'loan_1', expenseName: 'Tuition Fee', expenseAmount: 100000, category: 'EDUCATION', expenseDate: '2026-02-10', description: 'Semester fee' },
+            { id: 'exp_2', loanId: 'loan_1', expenseName: 'Study Laptop', expenseAmount: 50000, category: 'PERSONAL', expenseDate: '2026-02-15', description: 'Laptop purchase' }
+        ];
 
-    notifications: [
-        { id: 'n1', title: 'EMI Due Reminder', message: 'Your EMI of ₹10,247 for Education Loan is due on Aug 1, 2026.', type: 'EMI_REMINDER', isRead: false, createdAt: '2026-07-20T10:00:00' },
-        { id: 'n2', title: 'Loan Approved', message: 'Your Personal Loan of ₹2,00,000 has been approved.', type: 'LOAN_APPROVED', isRead: true, createdAt: '2026-03-01T09:00:00' },
-        { id: 'n3', title: 'EMI Paid', message: 'Your EMI #5 for Education Loan has been recorded successfully.', type: 'EMI_PAID', isRead: true, createdAt: '2026-06-01T11:00:00' },
-        { id: 'n4', title: 'Monthly Summary', message: 'Your June 2026 financial summary is ready. Total spending: ₹35,000.', type: 'MONTHLY_SUMMARY', isRead: false, createdAt: '2026-07-01T08:00:00' },
-        { id: 'n5', title: 'Budget Alert', message: 'Your Education Loan utilization has crossed 35%. Monitor your spending.', type: 'BUDGET_ALERT', isRead: false, createdAt: '2026-07-15T14:00:00' }
-    ],
+        const initialNotifications = [
+            { id: 'n1', title: 'Welcome to FIN PULSE', message: 'Your account is ready! Manage your loans & expenses here.', type: 'GENERAL', isRead: false, createdAt: new Date().toISOString() }
+        ];
 
-    allUsers: [
-        { id: 1, fullName: 'Admin User', email: 'admin@finpulse.com', phoneNumber: '9876543210', role: 'ADMIN', isActive: true },
-        { id: 2, fullName: 'Rahul Kumar', email: 'rahul@example.com', phoneNumber: '9876543211', role: 'USER', isActive: true },
-        { id: 3, fullName: 'Priya Sharma', email: 'priya@example.com', phoneNumber: '9876543212', role: 'USER', isActive: true },
-        { id: 4, fullName: 'Amit Patel', email: 'amit@example.com', phoneNumber: '9876543213', role: 'USER', isActive: true },
-        { id: 5, fullName: 'Deepa Nair', email: 'deepa@example.com', phoneNumber: '9876543214', role: 'USER', isActive: false }
-    ],
+        App.state.loans = initialLoans;
+        App.state.expenses = initialExpenses;
+        App.state.notifications = initialNotifications;
+        App.state.emis = [];
 
-    allLoans: [
-        { id: 'loan_1', userName: 'Rahul Kumar', loanType: 'EDUCATION', loanAmount: 500000, interestRate: 8.5, loanTenure: 5, status: 'APPROVED' },
-        { id: 'loan_2', userName: 'Rahul Kumar', loanType: 'PERSONAL', loanAmount: 200000, interestRate: 12, loanTenure: 3, status: 'APPROVED' },
-        { id: 'loan_3', userName: 'Priya Sharma', loanType: 'HOME', loanAmount: 2500000, interestRate: 7.5, loanTenure: 20, status: 'APPROVED' },
-        { id: 'loan_4', userName: 'Amit Patel', loanType: 'VEHICLE', loanAmount: 800000, interestRate: 9, loanTenure: 7, status: 'PENDING' },
-        { id: 'loan_5', userName: 'Deepa Nair', loanType: 'BUSINESS', loanAmount: 1000000, interestRate: 11, loanTenure: 5, status: 'PENDING' }
-    ],
+        initialLoans.forEach(l => this.generateEmisForLoan(l));
+        this.saveData();
 
-    /** Generate EMI schedule for a loan */
-    generateEmis(loan) {
+        return App.state;
+    },
+
+    saveData() {
+        const key = this.getUserKey();
+        localStorage.setItem(key, JSON.stringify({
+            loans: App.state.loans,
+            expenses: App.state.expenses,
+            emis: App.state.emis,
+            notifications: App.state.notifications
+        }));
+    },
+
+    generateEmisForLoan(loan) {
         const n = loan.loanTenure * 12;
         const startDate = new Date(loan.createdAt || Date.now());
-        startDate.setMonth(startDate.getMonth() + 1); // First EMI next month
+        startDate.setMonth(startDate.getMonth() + 1);
         let balance = loan.totalRepayment || loan.loanAmount;
 
-        for (let i = 1; i <= Math.min(n, 24); i++) { // Generate up to 24 for demo
+        for (let i = 1; i <= Math.min(n, 24); i++) {
             const dueDate = new Date(startDate);
             dueDate.setMonth(dueDate.getMonth() + (i - 1));
-            const isPaid = i <= 5; // First 5 paid for demo
+            const isPaid = i <= 2;
             const emi = {
                 id: `emi_${loan.id}_${i}`,
                 loanId: loan.id,
@@ -323,25 +406,22 @@ const MockData = {
         }
     },
 
-    /** Generate mock dashboard data */
     getDashboardData() {
         const loans = App.state.loans;
         const expenses = App.state.expenses;
-        const totalLoan = loans.reduce((s, l) => s + l.loanAmount, 0);
-        const totalUtilized = loans.reduce((s, l) => s + (l.utilizedAmount || 0), 0);
-        const totalEmi = loans.reduce((s, l) => s + (l.monthlyEmi || 0), 0);
+        const totalLoan = loans.reduce((s, l) => s + (parseFloat(l.loanAmount) || 0), 0);
+        const totalUtilized = loans.reduce((s, l) => s + (parseFloat(l.utilizedAmount) || 0), 0);
+        const totalEmi = loans.reduce((s, l) => s + (parseFloat(l.monthlyEmi) || 0), 0);
 
-        // Category breakdown
         const categories = {};
         expenses.forEach(e => {
-            categories[e.category] = (categories[e.category] || 0) + (e.expenseAmount || 0);
+            categories[e.category] = (categories[e.category] || 0) + parseFloat(e.expenseAmount || e.amount || 0);
         });
 
-        // Monthly trend
         const monthly = {};
         expenses.forEach(e => {
             const m = new Date(e.expenseDate).toLocaleString('en', { month: 'short', year: '2-digit' });
-            monthly[m] = (monthly[m] || 0) + (e.expenseAmount || 0);
+            monthly[m] = (monthly[m] || 0) + parseFloat(e.expenseAmount || e.amount || 0);
         });
 
         return {
@@ -353,14 +433,19 @@ const MockData = {
             monthlyExpenses: monthly,
             recentExpenses: expenses.slice(-5).reverse()
         };
-    },
+    }
+};
 
-    /** Initialize mock EMIs */
-    init() {
-        App.state.emis = [];
-        this.loans.forEach(loan => this.generateEmis(loan));
+const MockData = {
+    allUsers: [
+        { id: 1, fullName: 'Admin User', email: 'admin@finpulse.com', phoneNumber: '9876543210', role: 'ADMIN', isActive: true },
+        { id: 2, fullName: 'Rahul Kumar', email: 'rahul@example.com', phoneNumber: '9876543211', role: 'USER', isActive: true }
+    ],
+    getDashboardData() {
+        return UserStorage.getDashboardData();
     }
 };
 
 window.ApiService = ApiService;
+window.UserStorage = UserStorage;
 window.MockData = MockData;
