@@ -1,6 +1,6 @@
 /* =====================================================
    FIN PULSE – Main Application Controller
-   SPA Router, State Management, and User Sessions
+   Strict SPA Router, Auth Guards & Session Management
    ===================================================== */
 
 const App = {
@@ -27,30 +27,30 @@ const App = {
 
         this.loadTheme();
 
-        // Router
+        // Router listener
         window.addEventListener('hashchange', () => this.handleRoute());
 
-        // Theme toggle
+        // Theme toggle listener
         const themeToggle = document.getElementById('theme-toggle');
         if (themeToggle) {
             themeToggle.addEventListener('click', () => this.toggleTheme());
         }
 
-        // Initialize modules
+        // Initialize auth & management modules
         if (typeof AuthModule !== 'undefined') AuthModule.init();
         if (typeof LoanModule !== 'undefined') LoanModule.init();
         if (typeof ExpenseModule !== 'undefined') ExpenseModule.init();
         if (typeof ProfileModule !== 'undefined') ProfileModule.init();
 
-        // Load data if user is logged in
+        // Load user app data if logged in
         if (this.currentUser) {
             this.loadAppData();
         }
 
-        // Handle initial route (if no hash, show splash)
+        // Handle initial route (if not logged in, go to splash)
         const hash = location.hash.replace('#', '');
         if (!hash) {
-            location.hash = '#splash';
+            location.hash = this.currentUser ? '#dashboard' : '#splash';
         } else {
             this.handleRoute();
         }
@@ -66,23 +66,28 @@ const App = {
     },
 
     /* =====================================================
-       ROUTING & UI RENDER
+       ROUTING & UI RENDER (STRICT AUTH GUARDS)
        ===================================================== */
     handleRoute() {
         const hash = location.hash.replace('#', '') || 'splash';
         const screen = this.screens.includes(hash) ? hash : 'splash';
 
-        // Auto-seed a demo user session ONLY if trying to access dashboard/loans directly without login
+        // STRICT AUTH GUARD: Require login/registration before accessing dashboard, loans, expenses, emi, etc.
         if (!this.publicScreens.includes(screen) && !this.currentUser) {
-            this.currentUser = {
-                fullName: 'Demo User',
-                email: 'demo@finpulse.com',
-                role: 'ADMIN',
-                phone: '9876543210',
-                createdAt: new Date().toISOString()
-            };
-            localStorage.setItem('fp_user', JSON.stringify(this.currentUser));
-            this.loadAppData();
+            if (typeof Utils !== 'undefined') {
+                Utils.showToast('Please register or login to access FIN PULSE', 'warning');
+            }
+            location.hash = '#login';
+            return;
+        }
+
+        // STRICT ADMIN GUARD: Require ADMIN role for admin panel
+        if (screen === 'admin' && this.currentUser && (this.currentUser.role || '').toUpperCase() !== 'ADMIN') {
+            if (typeof Utils !== 'undefined') {
+                Utils.showToast('Admin access required', 'warning');
+            }
+            location.hash = '#dashboard';
+            return;
         }
 
         this.showScreen(screen);
@@ -100,13 +105,13 @@ const App = {
             target.classList.add('active');
         }
 
-        // Toggle Header and Bottom Navigation visibility based on public vs private screens
+        // HIDE Header and Navigation completely on Splash, Login, and Register screens
         const header = document.getElementById('main-header');
         const nav = document.getElementById('bottom-nav');
         const isPublic = this.publicScreens.includes(screenId);
 
-        if (header) header.classList.toggle('hidden', isPublic && !this.currentUser);
-        if (nav) nav.classList.toggle('hidden', isPublic);
+        if (header) header.classList.toggle('hidden', isPublic || !this.currentUser);
+        if (nav) nav.classList.toggle('hidden', isPublic || !this.currentUser);
 
         // Highlight Desktop & Mobile Navigation Links
         document.querySelectorAll('.header-nav-link, .nav-item').forEach(item => {
@@ -191,7 +196,7 @@ const App = {
         this.currentUser = {
             fullName: userData.fullName || userData.name || 'User Account',
             email: userData.email || 'user@finpulse.com',
-            role: userData.role || 'USER',
+            role: (userData.role || 'USER').toUpperCase(),
             phone: userData.phone || userData.phoneNumber || '9876543210',
             createdAt: userData.createdAt || new Date().toISOString()
         };
@@ -204,6 +209,7 @@ const App = {
         this.state = { loans: [], expenses: [], emis: [], notifications: [] };
         localStorage.removeItem('fp_user');
         if (typeof ApiService !== 'undefined') ApiService.clearToken();
+        location.hash = '#login';
     }
 };
 
