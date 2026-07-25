@@ -891,5 +891,47 @@
         </div>
     </div>
 
+    <!-- Pay EMI Modal -->
+    <div id="pay-emi-modal" class="modal-overlay">
+        <div class="modal-content card glass-card">
+            <div class="modal-header">
+                <h3><span class="material-icons" style="color:var(--secondary);">verified</span> Pay EMI Installment</h3>
+                <button class="icon-btn" onclick="EmiModule.closePayModal()"><span class="material-icons">close</span></button>
+            </div>
+            <form id="pay-emi-form" onsubmit="EmiModule.confirmPayment(event)">
+                <input type="hidden" id="pay-emi-id">
+                
+                <div style="background:var(--primary-50);border-radius:var(--radius);padding:1.2rem;margin-bottom:1.25rem;text-align:center;">
+                    <span style="font-size:0.8rem;color:var(--text-secondary);display:block;text-transform:uppercase;font-weight:600;">Installment Amount Due</span>
+                    <span id="pay-modal-amount" style="font-family:'Outfit';font-size:1.8rem;font-weight:800;color:var(--primary);">₹0</span>
+                    <p id="pay-modal-info" style="font-size:0.85rem;color:var(--text-muted);margin-top:0.25rem;">--</p>
+                </div>
+
+                <div class="input-group">
+                    <span class="material-icons input-icon">payment</span>
+                    <select id="pay-method" required>
+                        <option value="UPI">📱 UPI / Google Pay / PhonePe / Paytm</option>
+                        <option value="NETBANKING">🏦 Net Banking (SBI / HDFC / ICICI / Axis)</option>
+                        <option value="CARD">💳 Debit / Credit Card</option>
+                        <option value="AUTO_DEBIT">🔄 Auto-Debit / NACH Account</option>
+                    </select>
+                </div>
+
+                <div class="input-group" id="upi-field-group">
+                    <span class="material-icons input-icon">alternate_email</span>
+                    <input type="text" id="pay-upi-id" placeholder=" " value="user@upi">
+                    <label for="pay-upi-id">Enter UPI ID / VPA</label>
+                </div>
+
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary btn-lg flex-1 btn-glow">
+                        <span class="material-icons">check_circle</span> Confirm Payment
+                    </button>
+                    <button type="button" class="btn btn-outline flex-1" onclick="EmiModule.closePayModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </body>
 </html>

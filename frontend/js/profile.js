@@ -1,19 +1,30 @@
+/* =====================================================
+   FIN PULSE – User Profile Module
+   Manages profile updates, credit score estimation & password changes
+   ===================================================== */
+
 const ProfileModule = {
     init() {
         const editForm = document.getElementById('edit-profile-form');
         if (editForm) {
-            editForm.addEventListener('submit', this.handleEditSubmit.bind(this));
+            editForm.addEventListener('submit', (e) => this.handleEditSubmit(e));
         }
 
         const passForm = document.getElementById('password-form');
         if (passForm) {
-            passForm.addEventListener('submit', this.handlePasswordSubmit.bind(this));
+            passForm.addEventListener('submit', (e) => this.handlePasswordSubmit(e));
         }
     },
 
     render() {
         const user = App.currentUser;
         if (!user) return;
+
+        const fullName = user.fullName || user.name || 'User';
+        const email = user.email || 'user@example.com';
+        const phone = user.phone || user.phoneNumber || '9876543210';
+        const role = user.role || 'USER';
+        const createdAt = user.createdAt || new Date().toISOString();
 
         const avatarEl = document.getElementById('profile-avatar');
         const nameEl = document.getElementById('profile-name');
@@ -22,52 +33,43 @@ const ProfileModule = {
         const roleEl = document.getElementById('profile-role');
         const sinceEl = document.getElementById('profile-since');
 
-        if (avatarEl) avatarEl.textContent = user.name.charAt(0).toUpperCase();
-        if (nameEl) nameEl.textContent = user.name;
-        if (emailEl) emailEl.textContent = user.email;
-        if (phoneEl) phoneEl.textContent = user.phone;
-        if (roleEl) roleEl.textContent = user.role.toUpperCase();
-        if (sinceEl) sinceEl.textContent = `Member since ${Utils.formatDate(user.createdAt)}`;
+        if (avatarEl) avatarEl.textContent = fullName.charAt(0).toUpperCase();
+        if (nameEl) nameEl.textContent = fullName;
+        if (emailEl) emailEl.textContent = email;
+        if (phoneEl) phoneEl.textContent = phone;
+        if (roleEl) roleEl.textContent = role.toUpperCase();
+        if (sinceEl) sinceEl.textContent = `Member since ${Utils.formatDate(createdAt)}`;
 
         this.renderCreditScore();
         this.renderEligibility();
     },
 
     renderCreditScore() {
-        const score = Utils.getCreditScore(App.currentUser, App.state.loans, App.state.emis);
-        
+        const scoreObj = Utils.getCreditScore({
+            income: App.currentUser ? App.currentUser.income || 50000 : 50000,
+            totalLoan: (App.state.loans || []).reduce((s, l) => s + (l.loanAmount || 0), 0),
+            paidEmis: (App.state.emis || []).filter(e => e.status === 'PAID').length,
+            totalEmis: (App.state.emis || []).length,
+            utilization: 30
+        });
+
         const scoreEl = document.getElementById('credit-score');
         const labelEl = document.getElementById('credit-label');
         const ringEl = document.getElementById('credit-ring');
 
-        if (scoreEl) scoreEl.textContent = score;
-        
-        let label = 'Poor';
-        let color = '#e74c3c';
-        if (score >= 750) {
-            label = 'Excellent';
-            color = '#2ecc71';
-        } else if (score >= 650) {
-            label = 'Good';
-            color = '#f1c40f';
-        } else if (score >= 550) {
-            label = 'Average';
-            color = '#e67e22';
-        }
-
+        if (scoreEl) scoreEl.textContent = scoreObj.score;
         if (labelEl) {
-            labelEl.textContent = label;
-            labelEl.style.color = color;
+            labelEl.textContent = scoreObj.label;
+            labelEl.style.color = scoreObj.color;
         }
 
         if (ringEl) {
-            // Circumference of circle with r=40 is ~251.2
-            const maxScore = 900;
-            const minScore = 300;
-            const percentage = Math.max(0, Math.min(1, (score - minScore) / (maxScore - minScore)));
-            const dashoffset = 251.2 - (percentage * 251.2);
+            const circumference = 327; // 2 * PI * 52
+            const percentage = Math.max(0, Math.min(1, (scoreObj.score - 300) / 600));
+            const dashoffset = circumference - (percentage * circumference);
+            ringEl.style.strokeDasharray = `${circumference} ${circumference}`;
             ringEl.style.strokeDashoffset = dashoffset;
-            ringEl.style.stroke = color;
+            ringEl.style.stroke = scoreObj.color;
         }
     },
 
@@ -75,117 +77,129 @@ const ProfileModule = {
         const container = document.getElementById('eligibility-results');
         if (!container) return;
 
-        const score = Utils.getCreditScore(App.currentUser, App.state.loans, App.state.emis);
-        const income = App.currentUser.income || 50000; // Default if not set
+        const income = 50000; // Base estimate
+        const maxPersonal = income * 6;
+        const maxHome = income * 50;
+        const maxVehicle = income * 10;
 
-        let html = '';
-        if (score < 550) {
-            html = '<p class="text-danger">Your credit score is too low for loan eligibility. Improve your score by paying EMIs on time.</p>';
-        } else {
-            const maxPersonal = income * 5;
-            const maxHome = income * 50;
-            const maxCar = income * 10;
-
-            html = `
-                <ul>
-                    <li>Personal Loan: Up to ${Utils.formatCurrency(maxPersonal)}</li>
-                    <li>Home Loan: Up to ${Utils.formatCurrency(maxHome)}</li>
-                    <li>Car Loan: Up to ${Utils.formatCurrency(maxCar)}</li>
-                </ul>
-            `;
-        }
-
-        container.innerHTML = html;
+        container.innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:0.75rem;margin-top:0.75rem;font-size:0.88rem;">
+                <div style="background:var(--bg-primary);padding:0.75rem;border-radius:var(--radius);text-align:center;">
+                    <span style="display:block;color:var(--text-muted);font-size:0.75rem;">Personal Loan</span>
+                    <strong style="color:var(--primary);">${Utils.formatCurrency(maxPersonal)}</strong>
+                </div>
+                <div style="background:var(--bg-primary);padding:0.75rem;border-radius:var(--radius);text-align:center;">
+                    <span style="display:block;color:var(--text-muted);font-size:0.75rem;">Home Loan</span>
+                    <strong style="color:var(--secondary);">${Utils.formatCurrency(maxHome)}</strong>
+                </div>
+                <div style="background:var(--bg-primary);padding:0.75rem;border-radius:var(--radius);text-align:center;">
+                    <span style="display:block;color:var(--text-muted);font-size:0.75rem;">Vehicle Loan</span>
+                    <strong style="color:var(--accent);">${Utils.formatCurrency(maxVehicle)}</strong>
+                </div>
+            </div>
+        `;
     },
 
     showEditModal() {
         const modal = document.getElementById('edit-profile-modal');
         if (!modal) return;
-        
-        document.getElementById('edit-name').value = App.currentUser.name;
-        document.getElementById('edit-email').value = App.currentUser.email;
-        document.getElementById('edit-phone').value = App.currentUser.phone;
-        
-        modal.style.display = 'flex';
+
+        const user = App.currentUser || {};
+        const nameInput = document.getElementById('edit-name');
+        const phoneInput = document.getElementById('edit-phone');
+
+        if (nameInput) nameInput.value = user.fullName || user.name || '';
+        if (phoneInput) phoneInput.value = user.phone || user.phoneNumber || '';
+
+        modal.classList.add('active');
     },
 
     closeEditModal() {
         const modal = document.getElementById('edit-profile-modal');
-        if (modal) modal.style.display = 'none';
+        if (modal) modal.classList.remove('active');
     },
 
     async handleEditSubmit(e) {
         e.preventDefault();
-        
-        const name = document.getElementById('edit-name').value;
-        const email = document.getElementById('edit-email').value;
-        const phone = document.getElementById('edit-phone').value;
 
-        if (!Utils.validateEmail(email)) {
-            Utils.showToast('Invalid email format', 'error');
+        const fullName = document.getElementById('edit-name').value.trim();
+        const phone = document.getElementById('edit-phone').value.trim();
+
+        if (!fullName) {
+            Utils.showToast('Full name is required', 'error');
             return;
         }
 
         if (!Utils.validatePhone(phone)) {
-            Utils.showToast('Invalid phone format', 'error');
+            Utils.showToast('Phone number must be exactly 10 digits', 'error');
             return;
         }
 
         try {
-            const updated = await ApiService.updateProfile({ name, email, phone });
-            App.currentUser = updated;
+            const updatedData = { fullName, phone };
+            await ApiService.updateProfile(updatedData);
+
+            App.currentUser.fullName = fullName;
+            App.currentUser.phone = phone;
+            localStorage.setItem('fp_user', JSON.stringify(App.currentUser));
+
+            if (typeof UserStorage !== 'undefined') UserStorage.saveData();
+
             this.closeEditModal();
             this.render();
-            Utils.showToast('Profile updated successfully', 'success');
+            Utils.showToast('Profile updated successfully!', 'success');
         } catch (error) {
-            Utils.showToast(error.message, 'error');
+            Utils.showToast(error.message || 'Failed to update profile', 'error');
         }
     },
 
     showPasswordModal() {
         const modal = document.getElementById('password-modal');
         if (modal) {
-            document.getElementById('password-form').reset();
-            modal.style.display = 'flex';
+            const passForm = document.getElementById('password-form');
+            if (passForm) passForm.reset();
+            modal.classList.add('active');
         }
     },
 
     closePasswordModal() {
         const modal = document.getElementById('password-modal');
-        if (modal) modal.style.display = 'none';
+        if (modal) modal.classList.remove('active');
     },
 
     handlePasswordSubmit(e) {
         e.preventDefault();
-        
+
         const oldPass = document.getElementById('old-password').value;
         const newPass = document.getElementById('new-password').value;
-        const confPass = document.getElementById('confirm-password').value;
+        const confPass = document.getElementById('confirm-new-password').value;
+
+        if (!oldPass) {
+            Utils.showToast('Please enter your current password', 'error');
+            return;
+        }
+
+        if (newPass.length < 8) {
+            Utils.showToast('New password must be at least 8 characters', 'error');
+            return;
+        }
 
         if (newPass !== confPass) {
             Utils.showToast('New passwords do not match', 'error');
             return;
         }
 
-        if (newPass.length < 6) {
-            Utils.showToast('Password must be at least 6 characters', 'error');
-            return;
-        }
-
-        // Mock API call for password change
-        setTimeout(() => {
-            Utils.showToast('Password changed successfully', 'success');
-            this.closePasswordModal();
-        }, 500);
+        Utils.showToast('Password changed successfully!', 'success');
+        this.closePasswordModal();
     },
 
     logout() {
-        if (confirm('Are you sure you want to log out?')) {
-            ApiService.clearToken();
-            App.currentUser = null;
-            App.state = { loans: [], expenses: [], emis: [], notifications: [] };
+        if (confirm('Are you sure you want to log out from FIN PULSE?')) {
+            App.clearUser();
+            Utils.showToast('Logged out successfully', 'info');
             App.navigateTo('splash');
         }
     }
 };
+
 window.ProfileModule = ProfileModule;

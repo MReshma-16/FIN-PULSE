@@ -1,6 +1,6 @@
 /* =====================================================
    FIN PULSE – Loan Management Module
-   Auto-calculates EMI, creates loans, and lists user loans
+   Auto-calculates EMI, creates loans, lists user loans, and supports loan deletion
    ===================================================== */
 
 const LoanModule = {
@@ -81,7 +81,7 @@ const LoanModule = {
             return;
         }
 
-        existingLoansDiv.innerHTML = '<h3>Existing Loans</h3>' + loans.map(loan => {
+        existingLoansDiv.innerHTML = '<h3 style="margin-bottom:1rem;">Your Active Loans</h3>' + loans.map(loan => {
             const amount = loan.loanAmount || loan.amount || 0;
             const rate = loan.interestRate || loan.rate || 0;
             const tenure = loan.loanTenure || loan.tenure || 0;
@@ -95,22 +95,50 @@ const LoanModule = {
                         <h4 style="font-size:1.1rem;display:flex;align-items:center;gap:0.4rem;">
                             <span class="material-icons" style="color:var(--primary)">account_balance</span> ${type}
                         </h4>
-                        <span class="badge-status badge-${status.toLowerCase()}">${status}</span>
+                        <div style="display:flex;align-items:center;gap:0.5rem;">
+                            <span class="badge-status badge-${status.toLowerCase()}">${status}</span>
+                            <button class="icon-btn" title="Delete Loan" onclick="LoanModule.deleteLoan('${loan.id}')">
+                                <span class="material-icons" style="color:var(--danger);font-size:1.2rem;">delete</span>
+                            </button>
+                        </div>
                     </div>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:0.75rem;font-size:0.9rem;">
-                        <div><span style="color:var(--text-muted);display:block;font-size:0.78rem;">Amount</span><strong>${Utils.formatCurrency(amount)}</strong></div>
+                        <div><span style="color:var(--text-muted);display:block;font-size:0.78rem;">Sanctioned Amount</span><strong>${Utils.formatCurrency(amount)}</strong></div>
                         <div><span style="color:var(--text-muted);display:block;font-size:0.78rem;">Monthly EMI</span><strong style="color:var(--primary);">${Utils.formatCurrency(emi)}</strong></div>
                         <div><span style="color:var(--text-muted);display:block;font-size:0.78rem;">Interest & Tenure</span><strong>${rate}% / ${tenure} yrs</strong></div>
-                        <div><span style="color:var(--text-muted);display:block;font-size:0.78rem;">Utilized</span><strong style="color:var(--accent);">${Utils.formatCurrency(loan.utilizedAmount || 0)}</strong></div>
+                        <div><span style="color:var(--text-muted);display:block;font-size:0.78rem;">Utilized Amount</span><strong style="color:var(--accent);">${Utils.formatCurrency(loan.utilizedAmount || 0)}</strong></div>
                     </div>
-                    <div style="margin-top:1rem;display:flex;justify-content:flex-end;">
+                    <div style="margin-top:1rem;display:flex;justify-content:flex-end;gap:0.75rem;">
                         <button class="btn btn-sm btn-outline" onclick="App.navigateTo('expense')">
                             <span class="material-icons">receipt_long</span> Track Expenses
+                        </button>
+                        <button class="btn btn-sm btn-primary" onclick="App.navigateTo('emi')">
+                            <span class="material-icons">payment</span> EMI Schedule
                         </button>
                     </div>
                 </div>
             `;
         }).join('');
+    },
+
+    deleteLoan(loanId) {
+        const loan = (App.state.loans || []).find(l => l.id === loanId);
+        const type = loan ? (loan.loanType || loan.type || 'Loan') : 'Loan';
+        const amount = loan ? (loan.loanAmount || loan.amount || 0) : 0;
+
+        if (confirm(`Are you sure you want to delete this ${type} (${Utils.formatCurrency(amount)})?\nAll associated expenses and EMI records will be permanently removed.`)) {
+            // Remove loan
+            App.state.loans = (App.state.loans || []).filter(l => l.id !== loanId);
+            // Remove associated expenses
+            App.state.expenses = (App.state.expenses || []).filter(e => e.loanId !== loanId);
+            // Remove associated EMIs
+            App.state.emis = (App.state.emis || []).filter(e => e.loanId !== loanId);
+
+            if (typeof UserStorage !== 'undefined') UserStorage.saveData();
+
+            Utils.showToast(`${type} deleted successfully`, 'info');
+            this.renderExistingLoans();
+        }
     },
 
     reset() {
