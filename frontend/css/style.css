@@ -97,23 +97,37 @@
     padding: 0;
 }
 
+/* HIDE ALL SCROLLBARS GLOBALLY */
+::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+html, body, #app-container, .screen, div, section, main {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+
 html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    overflow: hidden !important;
 }
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
-    line-height: 1.5;
+    line-height: 1.45;
     height: 100vh;
+    max-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center; /* PERFECT CENTERING */
     justify-content: flex-start;
     transition: background var(--transition), color var(--transition);
-    overflow: hidden; /* SINGLE PAGE VIEWPORT - NO WINDOW SCROLLBAR */
+    overflow: hidden !important; /* NO RIGHT SCROLLBAR AT ALL */
 }
 
 h1, h2, h3, h4 {
@@ -299,8 +313,9 @@ header {
     margin: 0 auto;
     margin-top: var(--header-height);
     height: calc(100vh - var(--header-height));
-    padding: 1.25rem 1.5rem 2rem;
-    overflow-y: auto; /* Clean inner screen scrolling if needed */
+    max-height: calc(100vh - var(--header-height));
+    padding: 0.75rem 1.25rem 1rem;
+    overflow: hidden !important; /* NO SCROLLBAR */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -313,6 +328,8 @@ header {
     display: none;
     animation: screenFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     margin: 0 auto;
+    max-height: calc(100vh - var(--header-height) - 2rem);
+    overflow: hidden !important;
 }
 
 .screen.active {
@@ -323,43 +340,40 @@ header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.75rem;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.4rem;
     border-bottom: 1px solid var(--border-light);
 }
 
 .screen-header h2 {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    font-size: 1.6rem;
+    gap: 0.5rem;
+    font-size: 1.4rem;
     color: var(--text-primary);
     letter-spacing: -0.5px;
 }
 
 .screen-header h2 .material-icons {
     color: var(--primary);
-    font-size: 1.8rem;
+    font-size: 1.6rem;
 }
 
 .section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 1rem;
+    margin-bottom: 0.65rem;
 }
 
-/* =====================================================
-   6. CARDS & GLASS DESIGN
-   ===================================================== */
 .card {
     background: var(--bg-card);
     border-radius: var(--radius-lg);
-    padding: 1.75rem;
+    padding: 1.1rem 1.3rem;
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     transition: all var(--transition);
-    margin-bottom: 1.25rem;
+    margin-bottom: 0.85rem;
     width: 100%;
 }
 
