@@ -1,17 +1,11 @@
 /* =====================================================
    FIN PULSE – Main Application Controller
-   SPA Router, State Management, and Seamless Navigation
+   SPA Router, State Management, and User Sessions
    ===================================================== */
 
 const App = {
-    // ─── Current User State (Default Active Session so all pages work) ──────────────────────────
-    currentUser: JSON.parse(localStorage.getItem('fp_user')) || {
-        fullName: 'User Account',
-        email: 'user@finpulse.com',
-        role: 'ADMIN',
-        phone: '9876543210',
-        createdAt: new Date().toISOString()
-    },
+    // ─── Current User State ──────────────────────────
+    currentUser: JSON.parse(localStorage.getItem('fp_user')) || null,
 
     // ─── Application State ───────────────────────────
     state: {
@@ -23,17 +17,13 @@ const App = {
 
     // ─── Screen Registry ─────────────────────────────
     screens: ['splash', 'register', 'login', 'loan', 'expense', 'emi', 'dashboard', 'reports', 'profile', 'admin', 'notifications'],
+    publicScreens: ['splash', 'register', 'login'],
 
     /* =====================================================
        INITIALIZATION
        ===================================================== */
     init() {
         console.log('🚀 FIN PULSE Initializing...');
-
-        // Ensure user session is persisted
-        if (!localStorage.getItem('fp_user')) {
-            localStorage.setItem('fp_user', JSON.stringify(this.currentUser));
-        }
 
         this.loadTheme();
 
@@ -52,13 +42,15 @@ const App = {
         if (typeof ExpenseModule !== 'undefined') ExpenseModule.init();
         if (typeof ProfileModule !== 'undefined') ProfileModule.init();
 
-        // Load data
-        this.loadAppData();
+        // Load data if user is logged in
+        if (this.currentUser) {
+            this.loadAppData();
+        }
 
-        // Handle initial route (default to dashboard if on splash or empty hash)
+        // Handle initial route (if no hash, show splash)
         const hash = location.hash.replace('#', '');
-        if (!hash || hash === 'splash') {
-            location.hash = '#dashboard';
+        if (!hash) {
+            location.hash = '#splash';
         } else {
             this.handleRoute();
         }
@@ -74,11 +66,25 @@ const App = {
     },
 
     /* =====================================================
-       ROUTING & UI RENDER (ALL PAGES ALWAYS WORK)
+       ROUTING & UI RENDER
        ===================================================== */
     handleRoute() {
-        const hash = location.hash.replace('#', '') || 'dashboard';
-        const screen = this.screens.includes(hash) ? hash : 'dashboard';
+        const hash = location.hash.replace('#', '') || 'splash';
+        const screen = this.screens.includes(hash) ? hash : 'splash';
+
+        // Auto-seed a demo user session ONLY if trying to access dashboard/loans directly without login
+        if (!this.publicScreens.includes(screen) && !this.currentUser) {
+            this.currentUser = {
+                fullName: 'Demo User',
+                email: 'demo@finpulse.com',
+                role: 'ADMIN',
+                phone: '9876543210',
+                createdAt: new Date().toISOString()
+            };
+            localStorage.setItem('fp_user', JSON.stringify(this.currentUser));
+            this.loadAppData();
+        }
+
         this.showScreen(screen);
     },
 
@@ -94,20 +100,15 @@ const App = {
             target.classList.add('active');
         }
 
-        // Show Header and Navigation Bar
+        // Toggle Header and Bottom Navigation visibility based on public vs private screens
         const header = document.getElementById('main-header');
         const nav = document.getElementById('bottom-nav');
+        const isPublic = this.publicScreens.includes(screenId);
 
-        if (header) header.classList.remove('hidden');
-        if (nav) nav.classList.remove('hidden');
+        if (header) header.classList.toggle('hidden', isPublic && !this.currentUser);
+        if (nav) nav.classList.toggle('hidden', isPublic);
 
-        // Ensure Admin Link is visible in Desktop Nav
-        const adminNavLink = document.querySelector('.admin-nav-item');
-        if (adminNavLink) {
-            adminNavLink.classList.remove('hidden');
-        }
-
-        // Highlight Active Desktop & Mobile Navigation Links
+        // Highlight Desktop & Mobile Navigation Links
         document.querySelectorAll('.header-nav-link, .nav-item').forEach(item => {
             const itemScreen = item.getAttribute('data-screen') || item.getAttribute('href')?.replace('#', '');
             item.classList.toggle('active', itemScreen === screenId);
@@ -190,7 +191,7 @@ const App = {
         this.currentUser = {
             fullName: userData.fullName || userData.name || 'User Account',
             email: userData.email || 'user@finpulse.com',
-            role: userData.role || 'ADMIN',
+            role: userData.role || 'USER',
             phone: userData.phone || userData.phoneNumber || '9876543210',
             createdAt: userData.createdAt || new Date().toISOString()
         };
@@ -199,14 +200,10 @@ const App = {
     },
 
     clearUser() {
-        this.currentUser = {
-            fullName: 'Guest User',
-            email: 'guest@finpulse.com',
-            role: 'USER',
-            phone: '9876543210',
-            createdAt: new Date().toISOString()
-        };
-        localStorage.setItem('fp_user', JSON.stringify(this.currentUser));
+        this.currentUser = null;
+        this.state = { loans: [], expenses: [], emis: [], notifications: [] };
+        localStorage.removeItem('fp_user');
+        if (typeof ApiService !== 'undefined') ApiService.clearToken();
     }
 };
 

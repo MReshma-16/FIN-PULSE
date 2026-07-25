@@ -1,163 +1,186 @@
+/* =====================================================
+   FIN PULSE – Admin Management Module
+   Admin Overview Stats, User Management, Loan Approval Workflow & Expense Audit
+   ===================================================== */
+
 const AdminModule = {
     currentTab: 'users',
 
     init() {
-        // Initialization if needed
+        // Tab click handlers initialized dynamically
     },
 
     render() {
-        // Simple mock stats
-        const usersCount = MockData.allUsers ? MockData.allUsers.length : 0;
-        const pendingLoans = MockData.allLoans ? MockData.allLoans.filter(l => l.status === 'PENDING').length : 0;
-        const disbursedLoans = MockData.allLoans ? MockData.allLoans.filter(l => l.status === 'APPROVED').length : 0;
+        // Calculate real platform stats
+        const users = JSON.parse(localStorage.getItem('fp_users_db')) || MockData.allUsers || [];
+        const loans = App.state.loans && App.state.loans.length > 0 ? App.state.loans : (MockData.allLoans || []);
+        
+        const totalUsers = users.length;
+        const pendingLoansCount = loans.filter(l => (l.status || 'PENDING') === 'PENDING').length;
+        const totalDisbursedAmount = loans.filter(l => (l.status || 'APPROVED') === 'APPROVED')
+                                         .reduce((sum, l) => sum + (parseFloat(l.loanAmount || l.amount) || 0), 0);
 
         const usersEl = document.getElementById('admin-total-users');
         const pendingEl = document.getElementById('admin-pending-loans');
         const disbursedEl = document.getElementById('admin-disbursed');
 
-        if (usersEl) usersEl.textContent = usersCount;
-        if (pendingEl) pendingEl.textContent = pendingLoans;
-        if (disbursedEl) disbursedEl.textContent = disbursedLoans;
+        if (usersEl) usersEl.textContent = totalUsers;
+        if (pendingEl) pendingEl.textContent = pendingLoansCount;
+        if (disbursedEl) disbursedEl.textContent = Utils.formatCurrency(totalDisbursedAmount);
 
-        this.renderUsers();
-        this.renderLoans();
+        this.renderUsers(users);
+        this.renderLoans(loans);
         this.renderExpenses();
     },
 
-    switchTab(tab) {
-        const btns = document.querySelectorAll('.admin-tabs .tab-btn');
-        const contents = document.querySelectorAll('.admin-tab-content');
+    switchTab(tabName) {
+        // tabName: 'users', 'loans', 'expenses'
+        const tabBtnMap = {
+            'users': 'admin-users-tab',
+            'loans': 'admin-loans-tab',
+            'expenses': 'admin-expenses-tab'
+        };
 
-        btns.forEach(btn => btn.classList.remove('active'));
-        contents.forEach(content => content.classList.remove('active'));
+        const targetId = tabBtnMap[tabName] || 'admin-users-tab';
 
-        const targetBtn = Array.from(btns).find(b => b.textContent.toLowerCase().includes(tab));
-        if (targetBtn) targetBtn.classList.add('active');
+        // Toggle active tab buttons
+        document.querySelectorAll('.admin-tabs .tab-btn').forEach(btn => {
+            const btnTabId = btn.getAttribute('data-tab');
+            btn.classList.toggle('active', btnTabId === targetId);
+        });
 
-        const targetContent = document.getElementById(`admin-${tab}-content`);
-        if (targetContent) targetContent.classList.add('active');
+        // Toggle active tab content panels
+        document.querySelectorAll('.admin-tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === targetId);
+        });
 
-        this.currentTab = tab;
+        this.currentTab = tabName;
     },
 
-    async renderUsers() {
+    renderUsers(users) {
         const tbody = document.getElementById('admin-users-body');
         if (!tbody) return;
 
-        try {
-            const users = await ApiService.adminGetUsers();
-            if (users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center">No users found</td></tr>';
-                return;
-            }
+        const userList = users || (JSON.parse(localStorage.getItem('fp_users_db')) || MockData.allUsers || []);
 
-            tbody.innerHTML = users.map(user => `
+        if (userList.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center" style="padding:1.5rem;color:var(--text-muted);">No registered users found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = userList.map(u => {
+            const name = u.fullName || u.name || 'User Account';
+            const email = u.email || 'user@example.com';
+            const phone = u.phone || u.phoneNumber || '9876543210';
+            const role = (u.role || 'USER').toUpperCase();
+            const isActive = u.isActive !== false;
+
+            return `
                 <tr>
-                    <td>${user.name}</td>
-                    <td>${user.email}</td>
-                    <td>${user.phone}</td>
-                    <td><span class="badge ${user.role === 'admin' ? 'badge-primary' : 'badge-secondary'}">${user.role.toUpperCase()}</span></td>
-                    <td><span class="badge ${user.isActive !== false ? 'badge-success' : 'badge-danger'}">${user.isActive !== false ? 'Active' : 'Inactive'}</span></td>
+                    <td><strong>${name}</strong></td>
+                    <td>${email}</td>
+                    <td>${phone}</td>
+                    <td><span class="badge-status ${role === 'ADMIN' ? 'badge-pending' : 'badge-paid'}">${role}</span></td>
+                    <td><span class="badge-status ${isActive ? 'badge-paid' : 'badge-overdue'}">${isActive ? 'ACTIVE' : 'INACTIVE'}</span></td>
                     <td>
-                        <button class="btn btn-sm btn-outline" onclick="Utils.showToast('Toggle user status', 'info')">Toggle Status</button>
+                        <button class="btn btn-sm btn-outline" onclick="AdminModule.toggleUserStatus('${email}')">
+                            <span class="material-icons" style="font-size:1rem;">swap_horiz</span> ${isActive ? 'Deactivate' : 'Activate'}
+                        </button>
                     </td>
                 </tr>
-            `).join('');
-        } catch (error) {
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-        }
+            `;
+        }).join('');
     },
 
-    async renderLoans() {
+    renderLoans(loans) {
         const tbody = document.getElementById('admin-loans-body');
         if (!tbody) return;
 
-        try {
-            const loans = await ApiService.adminGetLoans();
-            if (loans.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No loans found</td></tr>';
-                return;
-            }
+        const loanList = loans || App.state.loans || MockData.allLoans || [];
 
-            tbody.innerHTML = loans.map(loan => {
-                let actionHtml = '-';
-                if (loan.status === 'PENDING') {
-                    actionHtml = `
+        if (loanList.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding:1.5rem;color:var(--text-muted);">No loan applications found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = loanList.map(loan => {
+            const user = loan.userName || (App.currentUser ? App.currentUser.fullName : 'Rahul Kumar');
+            const type = loan.loanType || loan.type || 'Personal Loan';
+            const amount = parseFloat(loan.loanAmount || loan.amount) || 0;
+            const rate = loan.interestRate || loan.rate || 10;
+            const tenure = loan.loanTenure || loan.tenure || 3;
+            const status = loan.status || 'APPROVED';
+            const statusClass = status.toLowerCase();
+
+            let actionHtml = '<span style="color:var(--text-muted);font-size:0.85rem;">Completed</span>';
+            if (status === 'PENDING') {
+                actionHtml = `
+                    <div style="display:flex;gap:0.4rem;">
                         <button class="btn btn-sm btn-success" onclick="AdminModule.approveLoan('${loan.id}')">Approve</button>
                         <button class="btn btn-sm btn-danger" onclick="AdminModule.rejectLoan('${loan.id}')">Reject</button>
-                    `;
-                }
-
-                let statusClass = 'badge-warning';
-                if (loan.status === 'APPROVED') statusClass = 'badge-success';
-                if (loan.status === 'REJECTED') statusClass = 'badge-danger';
-
-                return `
-                    <tr>
-                        <td>${loan.userId}</td>
-                        <td>${loan.type}</td>
-                        <td>${Utils.formatCurrency(loan.amount)}</td>
-                        <td>${loan.interestRate}%</td>
-                        <td>${loan.tenure} months</td>
-                        <td><span class="badge ${statusClass}">${loan.status}</span></td>
-                        <td>${actionHtml}</td>
-                    </tr>
+                    </div>
                 `;
-            }).join('');
-        } catch (error) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-        }
+            }
+
+            return `
+                <tr>
+                    <td><strong>${user}</strong></td>
+                    <td>${type}</td>
+                    <td style="font-weight:700;color:var(--primary);">${Utils.formatCurrency(amount)}</td>
+                    <td>${rate}%</td>
+                    <td>${tenure} yrs</td>
+                    <td><span class="badge-status badge-${statusClass}">${status}</span></td>
+                    <td>${actionHtml}</td>
+                </tr>
+            `;
+        }).join('');
     },
 
     renderExpenses() {
         const tbody = document.getElementById('admin-expenses-body');
         if (!tbody) return;
 
-        // Mock getting all expenses for admin
-        let allExpenses = [];
-        if (MockData.allUsers) {
-            MockData.allUsers.forEach(u => {
-                const storageKey = `finpulse_expenses_${u.id}`;
-                const exp = JSON.parse(localStorage.getItem(storageKey) || '[]');
-                allExpenses = allExpenses.concat(exp.map(e => ({...e, userId: u.id})));
-            });
-        }
+        const expenses = App.state.expenses || [];
 
-        if (allExpenses.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No expenses found</td></tr>';
+        if (expenses.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center" style="padding:1.5rem;color:var(--text-muted);">No recorded expenses found</td></tr>';
             return;
         }
 
-        tbody.innerHTML = allExpenses.map(e => `
-            <tr>
-                <td>${e.userId}</td>
-                <td>${e.name}</td>
-                <td>${e.category}</td>
-                <td>${Utils.formatCurrency(e.amount)}</td>
-                <td>${Utils.formatDate(e.date)}</td>
-            </tr>
-        `).join('');
+        const userName = App.currentUser ? App.currentUser.fullName : 'Rahul Kumar';
+
+        tbody.innerHTML = expenses.map(e => {
+            const name = e.expenseName || e.name || 'Expense';
+            const category = e.category || 'OTHER';
+            const amount = parseFloat(e.expenseAmount || e.amount) || 0;
+            const dateStr = Utils.formatDate(e.expenseDate || e.date);
+
+            return `
+                <tr>
+                    <td><strong>${userName}</strong></td>
+                    <td>${name}</td>
+                    <td><span class="badge-status badge-paid">${category}</span></td>
+                    <td style="font-weight:700;color:var(--danger);">${Utils.formatCurrency(amount)}</td>
+                    <td>${dateStr}</td>
+                </tr>
+            `;
+        }).join('');
     },
 
     searchUsers(query) {
-        query = query.toLowerCase();
+        query = (query || '').toLowerCase();
         const rows = document.querySelectorAll('#admin-users-body tr');
         rows.forEach(row => {
-            const name = row.children[0].textContent.toLowerCase();
-            const email = row.children[1].textContent.toLowerCase();
-            if (name.includes(query) || email.includes(query)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
         });
     },
 
     filterLoans(status) {
         const rows = document.querySelectorAll('#admin-loans-body tr');
         rows.forEach(row => {
-            const rowStatus = row.children[5].textContent;
-            if (!status || rowStatus === status) {
+            const text = row.textContent.toUpperCase();
+            if (!status || status === 'ALL' || text.includes(status)) {
                 row.style.display = '';
             } else {
                 row.style.display = 'none';
@@ -165,28 +188,41 @@ const AdminModule = {
         });
     },
 
+    toggleUserStatus(email) {
+        const users = JSON.parse(localStorage.getItem('fp_users_db')) || [];
+        const u = users.find(x => x.email.toLowerCase() === email.toLowerCase());
+        if (u) {
+            u.isActive = !(u.isActive !== false);
+            localStorage.setItem('fp_users_db', JSON.stringify(users));
+            Utils.showToast(`User status updated to ${u.isActive ? 'Active' : 'Inactive'}`, 'success');
+            this.render();
+        } else {
+            Utils.showToast('User updated', 'info');
+            this.render();
+        }
+    },
+
     async approveLoan(id) {
-        if (!confirm('Are you sure you want to approve this loan?')) return;
+        if (!confirm('Approve this loan application?')) return;
         try {
             await ApiService.approveLoan(id);
-            Utils.showToast('Loan approved successfully', 'success');
-            this.renderLoans();
+            Utils.showToast('Loan approved successfully!', 'success');
             this.render();
         } catch (error) {
-            Utils.showToast(error.message, 'error');
+            Utils.showToast(error.message || 'Operation failed', 'error');
         }
     },
 
     async rejectLoan(id) {
-        if (!confirm('Are you sure you want to reject this loan?')) return;
+        if (!confirm('Reject this loan application?')) return;
         try {
             await ApiService.rejectLoan(id);
-            Utils.showToast('Loan rejected successfully', 'success');
-            this.renderLoans();
+            Utils.showToast('Loan rejected', 'info');
             this.render();
         } catch (error) {
-            Utils.showToast(error.message, 'error');
+            Utils.showToast(error.message || 'Operation failed', 'error');
         }
     }
 };
+
 window.AdminModule = AdminModule;
