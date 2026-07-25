@@ -1,20 +1,29 @@
 /* =====================================================
    FIN PULSE – Dashboard Module
-   Charts, stats, recent activity, and AI tips
+   Accurate real-time charts, stats, and zero-state handling
    ===================================================== */
 
 const DashboardModule = {
     charts: {},
 
     render() {
-        const data = (typeof UserStorage !== 'undefined') ? UserStorage.getDashboardData() : MockData.getDashboardData();
+        // Fetch real aggregated data for current user
+        const data = (typeof UserStorage !== 'undefined') ? UserStorage.getDashboardData() : {
+            totalLoanAmount: 0,
+            totalUtilizedAmount: 0,
+            remainingBalance: 0,
+            monthlyEmi: 0,
+            categoryExpenses: {},
+            monthlyExpenses: {},
+            recentExpenses: []
+        };
 
-        // Update stat cards
+        // Update stat cards accurately
         const el = (id) => document.getElementById(id);
-        if (el('dash-total-loan')) el('dash-total-loan').textContent = Utils.formatCurrency(data.totalLoanAmount);
-        if (el('dash-utilized')) el('dash-utilized').textContent = Utils.formatCurrency(data.totalUtilizedAmount);
-        if (el('dash-balance')) el('dash-balance').textContent = Utils.formatCurrency(data.remainingBalance);
-        if (el('dash-emi')) el('dash-emi').textContent = Utils.formatCurrency(data.monthlyEmi);
+        if (el('dash-total-loan')) el('dash-total-loan').textContent = Utils.formatCurrency(data.totalLoanAmount || 0);
+        if (el('dash-utilized')) el('dash-utilized').textContent = Utils.formatCurrency(data.totalUtilizedAmount || 0);
+        if (el('dash-balance')) el('dash-balance').textContent = Utils.formatCurrency(data.remainingBalance || 0);
+        if (el('dash-emi')) el('dash-emi').textContent = Utils.formatCurrency(data.monthlyEmi || 0);
 
         // Ensure Chart.js is ready, then render
         if (typeof Chart === 'undefined') {
@@ -41,71 +50,95 @@ const DashboardModule = {
             'PERSONAL': '#8E24AA', 'HOME': '#43A047', 'AGRICULTURE': '#00897B', 'OTHER': '#757575'
         };
 
-        // 1. Doughnut Chart - Spending by Category
+        const hasExpenses = data.categoryExpenses && Object.keys(data.categoryExpenses).length > 0 && Object.values(data.categoryExpenses).some(v => v > 0);
+
+        // 1. Doughnut Chart - Category Breakdown
         const canvasCat = document.getElementById('categoryChart');
         if (canvasCat) {
-            let catObj = data.categoryExpenses || {};
-            if (Object.keys(catObj).length === 0) {
-                // Fallback demo data if user has no expenses yet
-                catObj = { 'EDUCATION': 100000, 'PERSONAL': 50000, 'HOME': 35000 };
-            }
-
-            const labels = Object.keys(catObj);
-            const values = Object.values(catObj);
-            const colors = labels.map(l => categoryColors[l] || '#1976D2');
-
             const ctx = canvasCat.getContext('2d');
-            this.charts.categoryChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: colors,
-                        borderWidth: 2,
-                        borderColor: '#ffffff',
-                        hoverOffset: 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    plugins: {
-                        legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true, font: { family: 'Inter', size: 11 } } },
-                        tooltip: {
-                            callbacks: {
-                                label: (ctx) => ` ${ctx.label}: ${Utils.formatCurrency(ctx.raw)}`
+            
+            if (!hasExpenses) {
+                // ACCURATE ZERO STATE: No hardcoded demo numbers when loan/expenses = 0
+                this.charts.categoryChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['No Expenses Recorded'],
+                        datasets: [{
+                            data: [1],
+                            backgroundColor: ['#E2E8F0'],
+                            borderWidth: 1,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: () => ' ₹0 - Add expenses under Loan Utilization'
+                                }
                             }
                         }
                     }
-                }
-            });
+                });
+            } else {
+                const labels = Object.keys(data.categoryExpenses);
+                const values = Object.values(data.categoryExpenses);
+                const colors = labels.map(l => categoryColors[l] || '#1565C0');
+
+                this.charts.categoryChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: colors,
+                            borderWidth: 2,
+                            borderColor: '#ffffff',
+                            hoverOffset: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '65%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, font: { family: 'Inter', size: 11 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => ` ${ctx.label}: ${Utils.formatCurrency(ctx.raw)}`
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         // 2. Bar Chart - Monthly Expenses
         const canvasTrend = document.getElementById('trendChart');
         if (canvasTrend) {
-            let monthlyObj = data.monthlyExpenses || {};
-            if (Object.keys(monthlyObj).length === 0) {
-                monthlyObj = { 'Jan 26': 45000, 'Feb 26': 65000, 'Mar 26': 30000, 'Apr 26': 40000 };
-            }
-
-            const labels = Object.keys(monthlyObj);
-            const values = Object.values(monthlyObj);
-
             const ctx = canvasTrend.getContext('2d');
+            const monthlyObj = data.monthlyExpenses || {};
+            const monthlyKeys = Object.keys(monthlyObj);
+            
+            const labels = monthlyKeys.length > 0 ? monthlyKeys : ['Current Month'];
+            const values = monthlyKeys.length > 0 ? Object.values(monthlyObj) : [0];
+
             this.charts.trendChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Expenses',
+                        label: 'Expenses (₹)',
                         data: values,
                         backgroundColor: 'rgba(21, 101, 192, 0.75)',
                         borderColor: '#1565C0',
                         borderWidth: 1.5,
-                        borderRadius: 6,
+                        borderRadius: 5,
                         hoverBackgroundColor: '#1E88E5'
                     }]
                 },
@@ -127,28 +160,24 @@ const DashboardModule = {
         // 3. Line Chart - EMI Payments Over Time
         const canvasEmi = document.getElementById('emiChart');
         if (canvasEmi) {
-            const paidEmis = (App.state.emis || []).filter(e => e.status === 'PAID').sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-            let emiLabels = paidEmis.map(e => Utils.formatDate(e.dueDate));
-            let emiValues = paidEmis.map(e => (e.emiAmount || e.amount || 0));
-
-            if (emiLabels.length === 0) {
-                emiLabels = ['Feb 26', 'Mar 26', 'Apr 26', 'May 26', 'Jun 26'];
-                emiValues = [10247, 10247, 10247, 10247, 10247];
-            }
-
             const ctx = canvasEmi.getContext('2d');
+            const paidEmis = (App.state.emis || []).filter(e => e.status === 'PAID').sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+            
+            const emiLabels = paidEmis.length > 0 ? paidEmis.map(e => Utils.formatDate(e.dueDate)) : ['Schedule'];
+            const emiValues = paidEmis.length > 0 ? paidEmis.map(e => (e.emiAmount || e.amount || 0)) : [0];
+
             this.charts.emiChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: emiLabels,
                     datasets: [{
-                        label: 'EMI Paid',
+                        label: 'EMI Paid (₹)',
                         data: emiValues,
                         fill: true,
                         backgroundColor: 'rgba(46, 125, 50, 0.12)',
                         borderColor: '#2E7D32',
-                        borderWidth: 2.5,
-                        tension: 0.35,
+                        borderWidth: 2,
+                        tension: 0.3,
                         pointBackgroundColor: '#2E7D32',
                         pointRadius: 4,
                         pointHoverRadius: 6
@@ -177,7 +206,7 @@ const DashboardModule = {
         const expList = (expenses && expenses.length > 0) ? expenses : App.state.expenses;
 
         if (!expList || expList.length === 0) {
-            container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:1rem;">No recent expenses</p>';
+            container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:0.75rem;font-size:0.88rem;">No recent expenses recorded</p>';
             return;
         }
 
@@ -195,7 +224,7 @@ const DashboardModule = {
 
         const tips = Utils.getFinancialTips(App.state.expenses, App.state.loans);
         if (!tips || tips.length === 0) {
-            container.innerHTML = '<p style="color:var(--text-muted);">No tips available.</p>';
+            container.innerHTML = '<p style="color:var(--text-muted);font-size:0.88rem;">Create a loan to get custom AI financial insights.</p>';
             return;
         }
 
@@ -212,8 +241,13 @@ const DashboardModule = {
         if (!container) return;
 
         const pendingEmis = (App.state.emis || []).filter(e => e.status !== 'PAID').sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+        
         if (pendingEmis.length === 0) {
-            container.innerHTML = '<p style="color:var(--secondary);font-weight:600;">🎉 All EMIs paid for this loan!</p>';
+            if ((App.state.loans || []).length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted);font-size:0.88rem;">No active loans or upcoming EMIs.</p>';
+            } else {
+                container.innerHTML = '<p style="color:var(--secondary);font-weight:600;">🎉 All EMIs paid for your active loan!</p>';
+            }
             return;
         }
 
@@ -225,12 +259,12 @@ const DashboardModule = {
         container.innerHTML = `
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <div>
-                    <h4 style="margin-bottom:0.25rem;">${loanType} – Installment #${next.emiNumber || 1}</h4>
-                    <p style="color:var(--text-muted);font-size:0.85rem;">Due Date: ${Utils.formatDate(next.dueDate)}</p>
+                    <h4 style="margin-bottom:0.2rem;font-size:0.95rem;">${loanType} – Installment #${next.emiNumber || 1}</h4>
+                    <p style="color:var(--text-muted);font-size:0.82rem;">Due Date: ${Utils.formatDate(next.dueDate)}</p>
                 </div>
                 <div style="text-align:right;">
-                    <span style="font-family:'Outfit';font-weight:800;font-size:1.3rem;color:var(--primary);">${Utils.formatCurrency(amount)}</span>
-                    <button class="btn btn-sm btn-primary btn-glow mt-2" onclick="App.navigateTo('emi')" style="display:block;margin-left:auto;">
+                    <span style="font-family:'Outfit';font-weight:800;font-size:1.2rem;color:var(--primary);">${Utils.formatCurrency(amount)}</span>
+                    <button class="btn btn-sm btn-primary btn-glow mt-1" onclick="App.navigateTo('emi')" style="display:block;margin-left:auto;">
                         Pay Now
                     </button>
                 </div>
