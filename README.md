@@ -2,6 +2,8 @@
 
 FIN PULSE is a mobile-first financial wellness application built with Flutter, Spring Boot, MySQL, and Firebase Authentication.
 
+LIVE SERVER LINK : https://fin-pulse-web.netlify.app/#splash
+
 ## Structure
 - Frontend: frontend/
 - Backend: backend/
